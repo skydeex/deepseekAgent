@@ -40,6 +40,7 @@ import { printBanner, c } from "./src/ui.js"
 import { setOutputFormat, isJson } from "./src/output.js"
 import { handleCommand } from "./src/commands.js"
 import { rl, ask } from "./src/rl.js"
+import { interrupt, isArmed } from "./src/interrupt.js"
 import { saveSession } from "./src/session.js"
 
 if (!process.env.DEEPSEEK_API_KEY) {
@@ -61,7 +62,14 @@ async function shutdown() {
   process.exit(0)
 }
 
-process.on("SIGINT", shutdown)
+process.on("SIGINT", () => {
+  if (isArmed()) {
+    process.stdout.write(c.yellow(" [Ctrl+C]\n"))
+    interrupt()
+  } else {
+    shutdown()
+  }
+})
 process.on("SIGTERM", shutdown)
 
 

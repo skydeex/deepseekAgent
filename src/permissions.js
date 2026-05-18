@@ -1,6 +1,7 @@
 import path from "path"
 import { getConfig, saveConfig } from "./config.js"
-import { waitForInput } from "./ui.js"
+import { askKey } from "./rl.js"
+import { interrupt } from "./interrupt.js"
 import { c } from "./ui.js"
 
 // Директории, одобренные на запись в текущей сессии (абсолютные пути)
@@ -79,14 +80,23 @@ export async function checkPermission(toolName, args) {
     const dir = path.dirname(path.resolve(filePath))
     prompt =
       c.yellow(`\n┌ [?] ${toolName} → ${filePath}\n`) +
-      c.yellow(`└ `) + c.dim(`[y/Enter] один раз  [d] запомнить папку "${dir}"  [N] отклонить: `)
+      c.yellow(`└ `) + c.dim(`[y/Enter] один раз  [d] запомнить папку "${dir}"  [n/Esc] отклонить: `)
   } else {
     prompt =
       c.yellow(`\n┌ [?] ${toolName}: ${JSON.stringify(args)}\n`) +
-      c.yellow(`└ `) + c.dim(`[y/Enter] один раз  [a] запомнить для этого проекта  [N] отклонить: `)
+      c.yellow(`└ `) + c.dim(`[y/Enter] один раз  [a] запомнить для этого проекта  [n/Esc] отклонить: `)
   }
 
-  const answer = (await waitForInput(prompt)).trim().toLowerCase()
+  const answer = await askKey(prompt)
+
+  if (answer === '\x03') {  // Ctrl+C — прерываем агента
+    interrupt()
+    return { allowed: false, reason: "interrupted" }
+  }
+
+  if (answer === '\x1b' || answer === 'n') {  // Escape или n — отклонить
+    return { allowed: false, reason: "user rejected" }
+  }
 
   if (answer === "d" && filePath) {
     const dir = path.dirname(path.resolve(filePath))

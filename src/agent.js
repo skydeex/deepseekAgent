@@ -16,6 +16,7 @@ import { runHooks } from "./hooks.js"
 import { compactIfNeeded } from "./compactor.js"
 import { getModel, printReasoning } from "./thinking.js"
 import { getConfig } from "./config.js"
+import { arm, disarm } from "./interrupt.js"
 import { c } from "./ui.js"
 import { print, emit } from "./output.js"
 import {
@@ -163,6 +164,8 @@ export async function agentLoop(userMessage) {
   await initialize()
   await runHooks("UserPromptSubmit", { message: userMessage })
 
+  const signal = arm()
+
   // Инициализируем messages если сессия пустая
   if (getMessages().length === 0) {
     const memory = await loadMemory()
@@ -194,92 +197,124 @@ export async function agentLoop(userMessage) {
 
   pushMessage({ role: "user", content: userMessage })
 
-  while (true) {
-    let messages = getMessages()
-    messages = await compactIfNeeded(messages, getClient())
-    setMessages(messages)
+  try {
+    while (true) {
+      if (signal.aborted) break
 
-    const stream = await getClient().chat.completions.create({
-      model: getModel(),
-      messages,
-      tools: buildOpenAITools(),
-      temperature: getConfig().temperature ?? 0,
-      stream: true
-    })
+      let messages = getMessages()
+      messages = await compactIfNeeded(messages, getClient())
+      setMessages(messages)
 
-    let fullContent = ""
-    let toolCalls = []
-    let finishReason = null
-    let hasReasoning = false
-
-    print(c.green("\nAgent: "))
-
-    for await (const chunk of stream) {
-      const delta = chunk.choices[0]?.delta
-      finishReason = chunk.choices[0]?.finish_reason ?? finishReason
-
-      if (printReasoning(chunk)) {
-        if (!hasReasoning) { print(c.dim("\n[thinking]\n")); hasReasoning = true }
-        continue
+      let stream
+      try {
+        stream = await getClient().chat.completions.create({
+          model: getModel(),
+          messages,
+          tools: buildOpenAITools(),
+          temperature: getConfig().temperature ?? 0,
+          stream: true,
+          signal
+        })
+      } catch (err) {
+        if (signal.aborted || err.name === 'AbortError') break
+        throw err
       }
 
-      if (hasReasoning && delta?.content && !fullContent) {
-        print(c.dim("[/thinking]\n") + c.green("Agent: "))
-        hasReasoning = false
-      }
+      let fullContent = ""
+      let toolCalls = []
+      let finishReason = null
+      let hasReasoning = false
 
-      if (delta?.content) {
-        print(delta.content)
-        emit("text", { text: delta.content })
-        fullContent += delta.content
-      }
+      print(c.green("\nAgent: "))
 
-      if (delta?.tool_calls) {
-        for (const tc of delta.tool_calls) {
-          if (!toolCalls[tc.index]) {
-            toolCalls[tc.index] = { id: "", type: "function", function: { name: "", arguments: "" } }
+      try {
+        for await (const chunk of stream) {
+          if (signal.aborted) break
+          const delta = chunk.choices[0]?.delta
+          finishReason = chunk.choices[0]?.finish_reason ?? finishReason
+
+          if (printReasoning(chunk)) {
+            if (!hasReasoning) { print(c.dim("\n[thinking]\n")); hasReasoning = true }
+            continue
           }
-          if (tc.id) toolCalls[tc.index].id += tc.id
-          if (tc.function?.name) toolCalls[tc.index].function.name += tc.function.name
-          if (tc.function?.arguments) toolCalls[tc.index].function.arguments += tc.function.arguments
+
+          if (hasReasoning && delta?.content && !fullContent) {
+            print(c.dim("[/thinking]\n") + c.green("Agent: "))
+            hasReasoning = false
+          }
+
+          if (delta?.content) {
+            print(delta.content)
+            emit("text", { text: delta.content })
+            fullContent += delta.content
+          }
+
+          if (delta?.tool_calls) {
+            for (const tc of delta.tool_calls) {
+              if (!toolCalls[tc.index]) {
+                toolCalls[tc.index] = { id: "", type: "function", function: { name: "", arguments: "" } }
+              }
+              if (tc.id) toolCalls[tc.index].id += tc.id
+              if (tc.function?.name) toolCalls[tc.index].function.name += tc.function.name
+              if (tc.function?.arguments) toolCalls[tc.index].function.arguments += tc.function.arguments
+            }
+          }
+        }
+      } catch (err) {
+        if (signal.aborted || err.name === 'AbortError') {
+          if (fullContent) print("\n")
+          break
+        }
+        throw err
+      }
+
+      if (signal.aborted) {
+        if (fullContent) print("\n")
+        break
+      }
+
+      if (fullContent) print("\n")
+
+      pushMessage({
+        role: "assistant",
+        content: fullContent || null,
+        tool_calls: toolCalls.length ? toolCalls : undefined
+      })
+
+      if (finishReason === "stop") {
+        await runHooks("Stop", { response: fullContent })
+        return fullContent
+      }
+
+      if (finishReason === "tool_calls") {
+        for (const call of toolCalls) {
+          if (signal.aborted) break
+
+          let args
+          try { args = JSON.parse(call.function.arguments) } catch { args = {} }
+
+          print(c.cyan("\n● " + formatToolCall(call.function.name, args)) + "\n")
+          emit("tool_call", { tool: call.function.name, args })
+
+          const result = await executeTool(call.function.name, args)
+
+          const full = String(result)
+          const CONTEXT_LIMIT = 12000
+          const toolContent = full.length > CONTEXT_LIMIT
+            ? full.slice(0, CONTEXT_LIMIT) + `\n[... truncated, ${full.length - CONTEXT_LIMIT} chars omitted]`
+            : full
+          const summary = formatToolResult(call.function.name, args, full)
+          if (summary) print(c.dim(`  ↳ ${summary}\n`))
+          emit("tool_result", { tool: call.function.name, result: full.slice(0, 300) })
+
+          pushMessage({ role: "tool", tool_call_id: call.id, content: toolContent })
         }
       }
     }
-
-    if (fullContent) print("\n")
-
-    pushMessage({
-      role: "assistant",
-      content: fullContent || null,
-      tool_calls: toolCalls.length ? toolCalls : undefined
-    })
-
-    if (finishReason === "stop") {
-      await runHooks("Stop", { response: fullContent })
-      return fullContent
-    }
-
-    if (finishReason === "tool_calls") {
-      for (const call of toolCalls) {
-        let args
-        try { args = JSON.parse(call.function.arguments) } catch { args = {} }
-
-        print(c.cyan("\n● " + formatToolCall(call.function.name, args)) + "\n")
-        emit("tool_call", { tool: call.function.name, args })
-
-        const result = await executeTool(call.function.name, args)
-
-        const full = String(result)
-        const CONTEXT_LIMIT = 12000
-        const toolContent = full.length > CONTEXT_LIMIT
-          ? full.slice(0, CONTEXT_LIMIT) + `\n[... truncated, ${full.length - CONTEXT_LIMIT} chars omitted]`
-          : full
-        const summary = formatToolResult(call.function.name, args, full)
-        if (summary) print(c.dim(`  ↳ ${summary}\n`))
-        emit("tool_result", { tool: call.function.name, result: full.slice(0, 300) })
-
-        pushMessage({ role: "tool", tool_call_id: call.id, content: toolContent })
-      }
-    }
+  } finally {
+    disarm()
   }
+
+  print(c.yellow("[прервано]\n"))
+  return null
 }
