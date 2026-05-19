@@ -57,7 +57,8 @@ export async function compactIfNeeded(messages, client, force = false) {
 
   const compacted = []
   if (system) compacted.push(system)
-  compacted.push({ role: "user", content: `[Previous conversation summary — continue the task described under "## Next step:" without asking for confirmation]:\n${summary}` })
+  compacted.push({ role: "user", content: `[Previous conversation summary]:\n${summary}` })
+  compacted.push({ role: "assistant", content: "Context restored. Continuing with the next step now — no confirmation needed." })
 
   return compacted
 }
