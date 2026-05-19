@@ -488,15 +488,15 @@ export async function cmdParser(args) {
 
   if (!sub || sub === "status") {
     const mode = config.generateParser ?? "ask"
-    print(c.bold("\n[parser] Авто-генерация парсеров\n"))
+    print(c.bold("\n[parser] Поддержка новых языков\n"))
     print(c.dim(`  Режим:          `) + c.cyan(mode) + "\n")
     print(c.dim(`  Языков в базе:  `) + getSupportedExtensions().length + "\n")
     print(c.dim(`\n  Режимы:\n`))
-    print(c.dim(`    /parser ask     — спрашивать при встрече нового типа (default)\n`))
-    print(c.dim(`    /parser always  — всегда генерировать без вопросов\n`))
-    print(c.dim(`    /parser never   — никогда не генерировать автоматически\n`))
-    print(c.dim(`\n  Ручная генерация:\n`))
-    print(c.dim(`    /parser gen <file> — сгенерировать для конкретного файла\n`))
+    print(c.dim(`    /parser ask     — спрашивать при встрече нового типа файла (default)\n`))
+    print(c.dim(`    /parser always  — добавлять поддержку автоматически без вопросов\n`))
+    print(c.dim(`    /parser never   — не добавлять автоматически\n`))
+    print(c.dim(`\n  Добавить вручную:\n`))
+    print(c.dim(`    /parser gen <file> — добавить поддержку для конкретного файла\n`))
     print(c.dim(`    или скажи агенту: "добавь поддержку .xyz"\n`))
     print("\n")
     return true
@@ -539,7 +539,7 @@ export async function cmdOptimizer() {
   print(c.dim(`  Инструменты: ${tools}\n`))
   print(c.dim(`  Поддержка: 75+ языков (YAML, Go, Rust, Python, …)\n`))
   if (config.optimizer) {
-    print(c.dim(`  Для неизвестных типов — предложит сгенерировать парсер (/parser для настройки)\n`))
+    print(c.dim(`  Для неизвестных типов — предложит добавить поддержку языка (/parser для настройки)\n`))
   }
   print("\n")
 }
@@ -634,7 +634,7 @@ function printHelp() {
     ["/model",            "информация о доступных моделях"],
     ["/creative",         "переключить точный (t=0) ↔ рассуждения (t=0.5)"],
     ["/optimizer",        "включить/выключить code optimizer (75+ языков)"],
-    ["/parser [sub]",     "авто-генерация парсеров: ask/always/never/gen <file>"],
+    ["/parser [sub]",     "поддержка новых языков: ask/always/never/gen <file>"],
     ["/resume",           "восстановить предыдущую сессию"],
     ["/help",             "эта справка"],
   ]

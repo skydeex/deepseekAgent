@@ -98,7 +98,7 @@ export async function promptGenerate(ext, langName) {
 
   const prompt =
     c.yellow(`\n┌ [?] Неизвестный тип файла: `) + c.bold(ext) + nameHint + "\n" +
-    c.yellow(`│     Сгенерировать парсер для optimizer?\n`) +
+    c.yellow(`│     Научить агента читать структуру ${langName}-файлов?\n`) +
     c.yellow(`└ `) +
     c.dim(`[Enter] да  [a] всегда  [n] не сейчас  [Esc] пропустить: `)
 
@@ -345,7 +345,7 @@ async function installParser(langName, ext, code) {
 async function runGeneration(filePath, lines, langName, { silent = false } = {}) {
   const ext = path.extname(filePath).toLowerCase()
 
-  process.stdout.write(c.dim(`  ⟳ Генерирую парсер для ${langName}...`))
+  process.stdout.write(c.dim(`  ⟳ Изучаю синтаксис ${langName}...`))
 
   let code        = null
   let validation  = null
@@ -378,7 +378,7 @@ async function runGeneration(filePath, lines, langName, { silent = false } = {})
   }
 
   if (validation.count === 0) {
-    console.log(c.yellow(`  ⚠ Парсер не обнаружил элементов в файле.`))
+    console.log(c.yellow(`  ⚠ Не удалось распознать структуру файла.`))
     return null
   }
 
@@ -395,7 +395,7 @@ async function runGeneration(filePath, lines, langName, { silent = false } = {})
   if (silent) {
     try {
       const relPath = await installParser(langName, ext, code)
-      console.log(c.green(`  ✓ Парсер сохранён: ${relPath}`))
+      console.log(c.green(`  ✓ Поддержка ${langName} сохранена: ${relPath}`))
     } catch (e) {
       console.log(c.yellow(`  ⚠ Не удалось записать файл (${e.message}), работает в памяти.`))
       registerDynamic(validation.parser)
@@ -405,18 +405,18 @@ async function runGeneration(filePath, lines, langName, { silent = false } = {})
 
   // Интерактивный режим — спрашиваем
   const saveKey = await askKey(
-    c.yellow(`\n  Сохранить парсер? `) +
+    c.yellow(`\n  Сохранить поддержку ${langName}? `) +
     c.dim(`[Enter] да  [Esc] нет: `)
   )
   if (saveKey !== "" && saveKey !== "y") {
-    console.log(c.dim("  Парсер не сохранён (работает только в этой сессии)."))
+    console.log(c.dim("  Не сохранено — работает только в этой сессии."))
     registerDynamic(validation.parser)
     return validation.parser
   }
 
   try {
     const relPath = await installParser(langName, ext, code)
-    console.log(c.green(`  ✓ Парсер сохранён: ${relPath}`))
+    console.log(c.green(`  ✓ Поддержка ${langName} сохранена: ${relPath}`))
     return validation.parser
   } catch (e) {
     console.log(c.red(`  ✗ Не удалось сохранить: ${e.message}`))
