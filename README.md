@@ -99,26 +99,27 @@ agent --output-format=json "prompt"           # CI / scripting — JSON output
 
 Type directly in the chat:
 
-| Command | Description |
-|---|---|
-| `/help` | List all commands |
-| `/clear` | Reset context (= `/reset`, `/new`) |
-| `/compact` | Manually compact context via LLM |
-| `/context` | Context usage progress bar (= `/usage`) |
-| `/export [file]` | Save conversation history to a file |
-| `/recap` | Brief summary of the current session |
-| `/btw <question>` | Ask the model without adding to history |
-| `/diff` | Show `git diff HEAD` |
-| `/rewind` | Roll back to a checkpoint (= `/undo`, `/checkpoint`) |
-| `/review [focus]` | Send `git diff HEAD` to the agent for code review |
-| `/security-review` | Review for vulnerabilities (SQLi, XSS, command injection, etc.) |
-| `/simplify [focus]` | Three parallel agents: DRY, code quality, performance |
-| `/batch <task>` | Agent decomposes the task and runs subtasks in parallel |
+| Command              | Description |
+|----------------------|---|
+| `/help`              | List all commands |
+| `/clear`             | Reset context (= `/reset`, `/new`) |
+| `/compact`           | Manually compact context via LLM |
+| `/context`           | Context usage progress bar (= `/usage`) |
+| `/export [file]`     | Save conversation history to a file |
+| `/recap`             | Brief summary of the current session |
+| `/btw <question>`    | Ask the model without adding to history |
+| `/diff`              | Show `git diff HEAD` |
+| `/rewind`            | Roll back to a checkpoint (= `/undo`, `/checkpoint`) |
+| `/review [focus]`    | Send `git diff HEAD` to the agent for code review |
+| `/security-review`   | Review for vulnerabilities (SQLi, XSS, command injection, etc.) |
+| `/simplify [focus]`  | Three parallel agents: DRY, code quality, performance |
+| `/batch <task>`      | Agent decomposes the task and runs subtasks in parallel |
 | `/loop [N] <prompt>` | Run prompt every N seconds/minutes/hours; repeat `/loop` to stop |
-| `/resume` | Restore previous session (auto-saved on exit) |
-| `/optimizer` | Toggle code optimizer on/off (PHP/JS/Go/CSS/Astro) |
-| `/creative` | Toggle precise mode (temperature=0) ↔ reasoning mode (temperature=0.5) |
-| `/model` | Info about the current model |
+| `/resume`            | Restore previous session (auto-saved on exit) |
+| `/optimizer`         | Toggle code optimizer on/off (PHP/JS/Go/CSS/Astro) |
+| `/creative`          | Toggle precise mode (temperature=0) ↔ reasoning mode (temperature=0.5) |
+| `/lang [code\|off]`  | Set response language (`ru`, `en`, `de`, …) or reset to auto-detect |
+| `/model`             | Info about the current model |
 
 ## Tools
 
