@@ -2,4 +2,6 @@ node_modules/
 .env
 .idea
 ___.MD
+CLAUDE.md
+.claude/
 claude-search

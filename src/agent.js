@@ -18,6 +18,7 @@ import { compactIfNeeded } from "./compactor.js"
 import { getModel, printReasoning } from "./thinking.js"
 import { getConfig, saveConfig } from "./config.js"
 import { arm, disarm } from "./interrupt.js"
+import { isFileTool, cacheCheck, cacheSet } from "./file_cache.js"
 import { c } from "./ui.js"
 import { print, emit } from "./output.js"
 import {
@@ -341,6 +342,15 @@ export async function agentLoop(userMessage) {
           print(c.cyan("\n● " + formatToolCall(call.function.name, args)) + "\n")
           emit("tool_call", { tool: call.function.name, args })
 
+          if (isFileTool(call.function.name, args)) {
+            const hit = await cacheCheck(call.function.name, call.function.arguments, args.path, getMessages().length)
+            if (hit) {
+              print(c.dim(`  ↳ кеш\n`))
+              pushMessage({ role: "tool", tool_call_id: call.id, content: "[File unchanged — already in context]" })
+              continue
+            }
+          }
+
           const result = await executeTool(call.function.name, args)
 
           const full = String(result)
@@ -353,6 +363,10 @@ export async function agentLoop(userMessage) {
           emit("tool_result", { tool: call.function.name, result: full.slice(0, 300) })
 
           pushMessage({ role: "tool", tool_call_id: call.id, content: toolContent })
+
+          if (isFileTool(call.function.name, args)) {
+            await cacheSet(call.function.name, call.function.arguments, args.path, getMessages().length)
+          }
         }
       }
     }
