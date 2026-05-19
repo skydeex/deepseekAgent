@@ -37,6 +37,16 @@ import groovyParser from "./groovy.js"
 import zigParser    from "./zig.js"
 import haskellParser from "./haskell.js"
 import rParser      from "./r.js"
+import ocamlParser  from "./ocaml.js"
+import fsharpParser from "./fsharp.js"
+import clojureParser from "./clojure.js"
+import erlangParser from "./erlang.js"
+import crystalParser from "./crystal.js"
+import nimParser    from "./nim.js"
+import juliaParser  from "./julia.js"
+import vueParser    from "./vue.js"
+import svelteParser from "./svelte.js"
+import hclParser    from "./hcl.js"
 
 const parsers = new Map()
 
@@ -71,6 +81,16 @@ register(groovyParser)
 register(zigParser)
 register(haskellParser)
 register(rParser)
+register(ocamlParser)
+register(fsharpParser)
+register(clojureParser)
+register(erlangParser)
+register(crystalParser)
+register(nimParser)
+register(juliaParser)
+register(vueParser)
+register(svelteParser)
+register(hclParser)
 // register(yourParser)  ← добавить новый язык здесь
 
 export function getParser(ext) {
