@@ -61,6 +61,8 @@ import racketParser  from "./racket.js"
 import tclParser     from "./tcl.js"
 import nixParser     from "./nix.js"
 import vhdlParser    from "./vhdl.js"
+import millforkParser from "./millfork.js"
+import plmParser      from "./plm.js"
 
 const parsers = new Map()
 
@@ -119,6 +121,8 @@ register(racketParser)
 register(tclParser)
 register(nixParser)
 register(vhdlParser)
+register(millforkParser)
+register(plmParser)
 // register(yourParser)  ← добавить новый язык здесь
 
 export function getParser(ext) {

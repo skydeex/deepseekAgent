@@ -37,7 +37,7 @@ agent update
 | `code_definition` | Извлечь тело конкретной функции (с 3 строками контекста выше) |
 | `code_context` | Показать N строк вокруг номера строки (целевая отмечена `>>>`) |
 
-Поддерживаются: PHP, JS/JSX/TS/TSX, Go, CSS/SCSS/SASS/LESS, Astro. Для неподдерживаемых типов файлов агент автоматически переключается на `read_file`.
+**50 парсеров, 106 расширений:** PHP, JS/JSX/TS/TSX, Go, CSS/SCSS/SASS/LESS, Astro, Python, Ruby, Rust, Java, C#, Swift, Kotlin, Bash, C/C++, Objective-C, Lua, Dart, Scala, Elixir, Perl, PowerShell, Groovy, Zig, Haskell, R, OCaml, F#, Clojure, Erlang, Crystal, Nim, Julia, Vue, Svelte, HCL/Terraform, SQL, GraphQL, Prisma, PL/SQL, Cypher, Solidity, D, Fortran, Common Lisp, Racket, Tcl, Nix, VHDL, Millfork, PL/M-80. Для неподдерживаемых типов автоматически переключается на `read_file`.
 
 ### Добавить парсер для нового языка
 

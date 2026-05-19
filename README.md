@@ -39,7 +39,7 @@ Enable with the `/optimizer` command in chat, or set `"optimizer": true` in `.ag
 | `code_definition` | Extract a specific function body (with 3 lines of context above) |
 | `code_context` | Show N lines around a line number (target marked with `>>>`) |
 
-Supported: PHP, JS/JSX/TS/TSX, Go, CSS/SCSS/SASS/LESS, Astro. For unsupported file types the agent falls back to `read_file` automatically.
+**50 language parsers, 106 extensions:** PHP, JS/JSX/TS/TSX, Go, CSS/SCSS/SASS/LESS, Astro, Python, Ruby, Rust, Java, C#, Swift, Kotlin, Bash, C/C++, Objective-C, Lua, Dart, Scala, Elixir, Perl, PowerShell, Groovy, Zig, Haskell, R, OCaml, F#, Clojure, Erlang, Crystal, Nim, Julia, Vue, Svelte, HCL/Terraform, SQL, GraphQL, Prisma, PL/SQL, Cypher, Solidity, D, Fortran, Common Lisp, Racket, Tcl, Nix, VHDL, Millfork, PL/M-80. For unsupported types the agent falls back to `read_file` automatically.
 
 ### Adding a new language parser
 
