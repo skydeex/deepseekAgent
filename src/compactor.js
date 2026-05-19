@@ -43,7 +43,7 @@ export async function compactIfNeeded(messages, client, force = false) {
     messages: [
       {
         role: "system",
-        content: "Summarize the following conversation concisely, preserving all important technical details, decisions made, and current task state."
+        content: "Summarize the following conversation concisely, preserving all important technical details, decisions made, and current task state. End the summary with a section '## Next step:' that explicitly states what the assistant should do next to continue the task."
       },
       {
         role: "user",
@@ -57,8 +57,7 @@ export async function compactIfNeeded(messages, client, force = false) {
 
   const compacted = []
   if (system) compacted.push(system)
-  compacted.push({ role: "user", content: `[Previous conversation summary]:\n${summary}` })
-  compacted.push({ role: "assistant", content: "Understood. I'll continue from where we left off." })
+  compacted.push({ role: "user", content: `[Previous conversation summary — continue the task described under "## Next step:" without asking for confirmation]:\n${summary}` })
 
   return compacted
 }
