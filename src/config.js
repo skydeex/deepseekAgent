@@ -12,7 +12,9 @@ const DEFAULTS = {
   dangerouslyDisableSandbox: false,
   mcpServers: {},
   language: null,
-  optimizer: false
+  optimizer: false,
+  generateParser: "ask",       // "ask" | "always" | "never"
+  generateParserNever: []      // расширения, для которых никогда не генерировать
 }
 
 let _config = null

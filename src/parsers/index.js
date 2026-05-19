@@ -180,3 +180,11 @@ export function getParser(ext) {
 export function getSupportedExtensions() {
   return [...parsers.keys()]
 }
+
+// Динамическая регистрация — для авто-генерации и hot-reload
+export function registerDynamic(parser) {
+  if (!parser?.extensions) return
+  for (const ext of parser.extensions) {
+    parsers.set(ext.toLowerCase(), parser)
+  }
+}

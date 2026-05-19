@@ -476,6 +476,62 @@ export async function cmdLang(args) {
 }
 
 // ─────────────────────────────────────────────
+// /parser — управление авто-генерацией парсеров
+// ─────────────────────────────────────────────
+export async function cmdParser(args) {
+  const { getConfig, saveConfig } = await import("./config.js")
+  const { getSupportedExtensions } = await import("./parsers/index.js")
+  const { tryGenerateParser } = await import("./parsers/generator.js")
+  const config = getConfig()
+
+  const sub = (args ?? "").trim().toLowerCase()
+
+  if (!sub || sub === "status") {
+    const mode = config.generateParser ?? "ask"
+    const never = (config.generateParserNever ?? [])
+    print(c.bold("\n[parser] Авто-генерация парсеров\n"))
+    print(c.dim(`  Режим:          `) + c.cyan(mode) + "\n")
+    print(c.dim(`  Языков в базе:  `) + getSupportedExtensions().length + "\n")
+    if (never.length) {
+      print(c.dim(`  Исключения:     `) + never.join(", ") + "\n")
+    }
+    print(c.dim(`\n  Подкоманды:\n`))
+    print(c.dim(`    /parser ask     — спрашивать при каждом новом типе\n`))
+    print(c.dim(`    /parser always  — всегда генерировать без вопросов\n`))
+    print(c.dim(`    /parser never   — никогда не генерировать\n`))
+    print(c.dim(`    /parser allow .ext — убрать .ext из исключений\n`))
+    print(c.dim(`    /parser gen <file> — сгенерировать для конкретного файла\n`))
+    print("\n")
+    return true
+  }
+
+  if (sub === "ask" || sub === "always" || sub === "never") {
+    config.generateParser = sub
+    await saveConfig()
+    print(c.bold(`\n[parser] generateParser = ${sub}\n\n`))
+    return true
+  }
+
+  if (sub.startsWith("allow ")) {
+    const ext = sub.slice(6).trim()
+    config.generateParserNever = (config.generateParserNever ?? []).filter(e => e !== ext)
+    await saveConfig()
+    print(c.dim(`\n[parser] ${ext} убран из исключений\n\n`))
+    return true
+  }
+
+  if (sub.startsWith("gen ")) {
+    const filePath = args.trim().slice(4).trim()
+    await tryGenerateParser(filePath)
+    return true
+  }
+
+  print(c.yellow(`\n[parser] Неизвестная подкоманда: ${sub}\n`))
+  print(c.dim(`  Используй /parser без аргументов для справки.\n\n`))
+  return true
+}
+
+// ─────────────────────────────────────────────
 // /optimizer — включить/выключить code optimizer
 // ─────────────────────────────────────────────
 export async function cmdOptimizer() {
@@ -492,9 +548,9 @@ export async function cmdOptimizer() {
     : "read_file, grep"
   print(c.bold(`\n[optimizer] ${state}\n`))
   print(c.dim(`  Инструменты: ${tools}\n`))
-  print(c.dim(`  Поддержка: PHP, JS/JSX/TS/TSX, Go, CSS/SCSS\n`))
+  print(c.dim(`  Поддержка: 75+ языков (YAML, Go, Rust, Python, …)\n`))
   if (config.optimizer) {
-    print(c.dim(`  Для неподдерживаемых файлов — работа по умолчанию (read_file)\n`))
+    print(c.dim(`  Для неизвестных типов — предложит сгенерировать парсер (/parser для настройки)\n`))
   }
   print("\n")
 }
@@ -561,6 +617,7 @@ export async function handleCommand(input) {
     case "model":        cmdModel(); return true
     case "creative":     cmdCreative(); return true
     case "optimizer":    await cmdOptimizer(); return true
+    case "parser":       await cmdParser(args); return true
     case "resume":       await cmdResume(); return true
     case "help":
     case "?":            printHelp(); return true
@@ -587,7 +644,8 @@ function printHelp() {
     ["/lang [код|off]",   "язык ответов (ru/en/de/…) или авто-определение"],
     ["/model",            "информация о доступных моделях"],
     ["/creative",         "переключить точный (t=0) ↔ рассуждения (t=0.5)"],
-    ["/optimizer",        "включить/выключить code optimizer (PHP/JS/Go/CSS)"],
+    ["/optimizer",        "включить/выключить code optimizer (75+ языков)"],
+    ["/parser [sub]",     "авто-генерация парсеров: status/ask/always/never/gen <file>"],
     ["/resume",           "восстановить предыдущую сессию"],
     ["/help",             "эта справка"],
   ]
