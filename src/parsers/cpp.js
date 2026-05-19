@@ -11,7 +11,7 @@ const CPP_KW = new Set([
 ])
 
 export default {
-  extensions: [".c", ".h", ".cpp", ".hpp", ".cc", ".cxx", ".m", ".mm"],
+  extensions: [".c", ".h", ".cpp", ".hpp", ".cc", ".cxx"],
 
   outline(lines) {
     const results = []

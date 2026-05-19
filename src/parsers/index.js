@@ -47,6 +47,20 @@ import juliaParser  from "./julia.js"
 import vueParser    from "./vue.js"
 import svelteParser from "./svelte.js"
 import hclParser    from "./hcl.js"
+import sqlParser     from "./sql.js"
+import graphqlParser from "./graphql.js"
+import prismaParser  from "./prisma.js"
+import plsqlParser   from "./plsql.js"
+import cypherParser  from "./cypher.js"
+import solidityParser from "./solidity.js"
+import objcParser    from "./objc.js"
+import dParser       from "./d.js"
+import fortranParser from "./fortran.js"
+import clispParser   from "./commonlisp.js"
+import racketParser  from "./racket.js"
+import tclParser     from "./tcl.js"
+import nixParser     from "./nix.js"
+import vhdlParser    from "./vhdl.js"
 
 const parsers = new Map()
 
@@ -91,6 +105,20 @@ register(juliaParser)
 register(vueParser)
 register(svelteParser)
 register(hclParser)
+register(sqlParser)
+register(graphqlParser)
+register(prismaParser)
+register(plsqlParser)
+register(cypherParser)
+register(solidityParser)
+register(objcParser)   // перекрывает .m/.mm из cppParser
+register(dParser)
+register(fortranParser)
+register(clispParser)
+register(racketParser)
+register(tclParser)
+register(nixParser)
+register(vhdlParser)
 // register(yourParser)  ← добавить новый язык здесь
 
 export function getParser(ext) {
