@@ -80,11 +80,11 @@ export async function checkPermission(toolName, args) {
     const dir = path.dirname(path.resolve(filePath))
     prompt =
       c.yellow(`\n┌ [?] ${toolName} → ${filePath}\n`) +
-      c.yellow(`└ `) + c.dim(`[y/Enter] один раз  [d] запомнить папку "${dir}"  [n/Esc] отклонить: `)
+      c.yellow(`└ `) + c.dim(`[Enter] один раз  [d] запомнить папку "${dir}"  [Esc] отклонить: `)
   } else {
     prompt =
       c.yellow(`\n┌ [?] ${toolName}: ${JSON.stringify(args)}\n`) +
-      c.yellow(`└ `) + c.dim(`[y/Enter] один раз  [a] запомнить для этого проекта  [n/Esc] отклонить: `)
+      c.yellow(`└ `) + c.dim(`[Enter] один раз  [a] запомнить для этого проекта  [Esc] отклонить: `)
   }
 
   const answer = await askKey(prompt)
@@ -94,7 +94,7 @@ export async function checkPermission(toolName, args) {
     return { allowed: false, reason: "interrupted" }
   }
 
-  if (answer === '\x1b' || answer === 'n') {  // Escape или n — отклонить
+  if (answer === '\x1b') {  // Escape — отклонить
     return { allowed: false, reason: "user rejected" }
   }
 
@@ -111,7 +111,7 @@ export async function checkPermission(toolName, args) {
     return { allowed: true }
   }
 
-  if (answer === "y" || answer === "") {
+  if (answer === "") {  // Enter — разрешить один раз
     return { allowed: true }
   }
 
