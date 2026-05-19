@@ -224,6 +224,7 @@ export async function agentLoop(userMessage) {
       "CRITICAL: Never guess or fabricate file contents, paths, function names, or technical details. Always use tools (read_file, glob, grep) to verify before making claims.",
       "If you are unsure about something, say so honestly instead of guessing. Use tools to check.",
       "Never assume code structure — always look at the actual files first.",
+      "Do not proactively scan directories at the start of a task. Only use glob/grep when the user's request explicitly involves local files or code.",
       "Do NOT run redundant verification commands after a successful operation (e.g. do not check if a directory exists right after creating it — trust the result).",
       "Do not attempt to read binary files (images, archives, executables, media, fonts, databases) unless the user explicitly asks you to inspect them.",
       optimizer
