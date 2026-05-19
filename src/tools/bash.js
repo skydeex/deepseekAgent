@@ -20,9 +20,21 @@ function sandboxCheck(command) {
   return null
 }
 
+const IS_WIN = process.platform === "win32"
+
 export const bashTool = {
   name: "bash",
-  description: "Run a bash/shell command and return stdout and stderr.",
+  description: IS_WIN
+    ? [
+        "Run a Windows CMD command. Use CMD syntax: mkdir, dir, copy, del, move, echo %CD%, etc.",
+        "Do NOT use bash/unix commands (pwd, ls, rm, head).",
+        "IMPORTANT Windows gotchas:",
+        "- 'dir <folder>' on an EMPTY folder prints 'File Not Found' — this means no files inside, NOT that the folder is missing. To check folder existence use: if exist <path> (echo EXISTS) else (echo NOT FOUND).",
+        "- 'cd X && command' works within one call but does NOT persist to the next tool call.",
+        "- Prefer PowerShell for complex operations: powershell -Command \"...\"",
+        "Do NOT add redundant verification after a successful command.",
+      ].join(" ")
+    : "Run a bash shell command and return stdout and stderr. Do NOT add redundant verification steps — trust the result of each command.",
   parameters: {
     type: "object",
     properties: {

@@ -434,6 +434,21 @@ const LANG_ALIASES = {
   ko: "Korean",  pt: "Portuguese", it: "Italian", pl: "Polish"
 }
 
+function applyLangToSystemMessage(language) {
+  const msgs = getMessages()
+  if (msgs.length === 0 || msgs[0].role !== "system") return
+  const newInstruction = language
+    ? `Always respond in ${language}. Code, commands, variable names, and technical identifiers must remain in English.`
+    : "Always respond in the same language the user is writing in. Do not switch languages mid-conversation."
+  const updated = msgs[0].content
+    .replace(
+      /Always respond in (?:the same language the user is writing in\. Do not switch languages mid-conversation\.|[^\n.]+\. Code, commands, variable names, and technical identifiers must remain in English\.)/,
+      newInstruction
+    )
+  msgs[0] = { ...msgs[0], content: updated }
+  setMessages(msgs)
+}
+
 export async function cmdLang(args) {
   const config = getConfig()
 
@@ -449,14 +464,15 @@ export async function cmdLang(args) {
   if (args === "off" || args === "auto" || args === "clear") {
     config.language = null
     await saveConfig()
+    applyLangToSystemMessage(null)
     print(c.dim("[lang] Язык сброшен — авто-определение активно.\n\n"))
     return
   }
 
   config.language = LANG_ALIASES[args.toLowerCase()] ?? args
   await saveConfig()
-  print(c.dim(`[lang] Язык установлен: ${config.language}\n`))
-  print(c.dim("  Применится после /clear или в новой сессии.\n\n"))
+  applyLangToSystemMessage(config.language)
+  print(c.dim(`[lang] Язык установлен: ${config.language}\n\n`))
 }
 
 // ─────────────────────────────────────────────

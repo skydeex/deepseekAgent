@@ -39,7 +39,7 @@ import { disconnectMcp } from "./src/mcp.js"
 import { printBanner, c } from "./src/ui.js"
 import { setOutputFormat, isJson } from "./src/output.js"
 import { handleCommand } from "./src/commands.js"
-import { rl, ask } from "./src/rl.js"
+import { rl, ask, askKey } from "./src/rl.js"
 import { interrupt, isArmed } from "./src/interrupt.js"
 import { saveSession } from "./src/session.js"
 
@@ -82,12 +82,12 @@ async function maybeInit() {
   try { await fs.access(agentDir); return } catch {}
 
   // Папка не существует — предлагаем инициализацию
-  const answer = (await ask(
+  const answer = await askKey(
     c.yellow(`\n┌ Папка не инициализирована для работы с агентом.\n`) +
-    c.yellow(`└ `) + c.dim(`Создать .agent/settings.json и .agent/AGENT.md? [Y/n] `)
-  )).trim().toLowerCase()
+    c.yellow(`└ `) + c.dim(`Создать .agent/settings.json и .agent/AGENT.md? [Enter] да  [Esc] нет  `)
+  )
 
-  if (answer === "n") { console.log(); return }
+  if (answer === "\x1b") { console.log(); return }
 
   await fs.mkdir(agentDir, { recursive: true })
 
