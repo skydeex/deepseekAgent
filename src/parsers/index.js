@@ -13,11 +13,20 @@
 //   rawBrackets?: boolean        — true = не убирать строки при подсчёте {} (для CSS)
 // }
 
-import phpParser from "./php.js"
-import jsParser from "./js.js"
-import goParser from "./go.js"
-import cssParser from "./css.js"
-import astroParser from "./astro.js"
+import phpParser    from "./php.js"
+import jsParser     from "./js.js"
+import goParser     from "./go.js"
+import cssParser    from "./css.js"
+import astroParser  from "./astro.js"
+import pythonParser from "./python.js"
+import rubyParser   from "./ruby.js"
+import rustParser   from "./rust.js"
+import javaParser   from "./java.js"
+import csharpParser from "./csharp.js"
+import swiftParser  from "./swift.js"
+import kotlinParser from "./kotlin.js"
+import bashParser   from "./bash.js"
+import cppParser    from "./cpp.js"
 
 const parsers = new Map()
 
@@ -33,6 +42,15 @@ register(jsParser)
 register(goParser)
 register(cssParser)
 register(astroParser)
+register(pythonParser)
+register(rubyParser)
+register(rustParser)
+register(javaParser)
+register(csharpParser)
+register(swiftParser)
+register(kotlinParser)
+register(bashParser)
+register(cppParser)
 // register(yourParser)  ← добавить новый язык здесь
 
 export function getParser(ext) {
