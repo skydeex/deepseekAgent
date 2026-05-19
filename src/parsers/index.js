@@ -63,6 +63,30 @@ import nixParser     from "./nix.js"
 import vhdlParser    from "./vhdl.js"
 import millforkParser from "./millfork.js"
 import plmParser      from "./plm.js"
+import yamlParser     from "./yaml.js"
+import tomlParser     from "./toml.js"
+import iniParser      from "./ini.js"
+import latexParser    from "./latex.js"
+import elmParser      from "./elm.js"
+import gleamParser    from "./gleam.js"
+import purescriptParser from "./purescript.js"
+import schemeParser   from "./scheme.js"
+import leanParser     from "./lean.js"
+import idrisParser    from "./idris.js"
+import assemblyParser from "./assembly.js"
+import adaParser      from "./ada.js"
+import odinParser     from "./odin.js"
+import pascalParser   from "./pascal.js"
+import cobolParser    from "./cobol.js"
+import carbonParser   from "./carbon.js"
+import glslParser     from "./glsl.js"
+import verilogParser  from "./verilog.js"
+import watParser      from "./wat.js"
+import cmakeParser    from "./cmake.js"
+import makefileParser from "./makefile.js"
+import coffeescriptParser from "./coffeescript.js"
+import prologParser   from "./prolog.js"
+import smalltalkParser from "./smalltalk.js"
 
 const parsers = new Map()
 
@@ -123,6 +147,30 @@ register(nixParser)
 register(vhdlParser)
 register(millforkParser)
 register(plmParser)
+register(yamlParser)
+register(tomlParser)
+register(iniParser)
+register(latexParser)
+register(elmParser)
+register(gleamParser)
+register(purescriptParser)
+register(schemeParser)
+register(leanParser)
+register(idrisParser)
+register(assemblyParser)
+register(adaParser)
+register(odinParser)
+register(pascalParser)
+register(cobolParser)
+register(carbonParser)
+register(glslParser)
+register(verilogParser)   // .v — не конфликтует, Verilog не был зарегистрирован
+register(watParser)
+register(cmakeParser)
+register(makefileParser)
+register(coffeescriptParser)
+register(prologParser)
+register(smalltalkParser)
 // register(yourParser)  ← добавить новый язык здесь
 
 export function getParser(ext) {
