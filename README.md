@@ -31,6 +31,8 @@ agent update
 
 The agent includes a built-in code optimizer (ported from [claudeSearch](https://github.com/skydeex/claudeSearch)). Instead of reading entire files, it extracts only the parts you need — function outlines, individual method bodies, and context around specific lines. Saves 60–70% of tokens compared to full-file reads.
 
+File reads are also deduplicated: if the model requests the same file again and the file hasn't changed (checked via mtime), the content is not added to context a second time. This prevents context bloat in long sessions, especially after compaction.
+
 Enable with the `/optimizer` command in chat, or set `"optimizer": true` in `.agent/settings.json`. Run `/optimizer` again to disable.
 
 | Tool | Description |
