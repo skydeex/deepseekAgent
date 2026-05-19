@@ -15,7 +15,7 @@ import { checkPermission } from "./permissions.js"
 import { runHooks } from "./hooks.js"
 import { compactIfNeeded } from "./compactor.js"
 import { getModel, printReasoning } from "./thinking.js"
-import { getConfig } from "./config.js"
+import { getConfig, saveConfig } from "./config.js"
 import { arm, disarm } from "./interrupt.js"
 import { c } from "./ui.js"
 import { print, emit } from "./output.js"
@@ -160,11 +160,54 @@ function formatToolResult(name, args, result) {
     : trimmed
 }
 
+// Определяет язык по доминирующему скрипту Unicode.
+// Считает только буквы (\p{L}) — пути, цифры, операторы, ASCII-код не влияют.
+// Возвращает название языка или null (латиница / недостаточно данных).
+function detectLanguage(text) {
+  const letters = text.match(/\p{L}/gu) ?? []
+  let cyrillic = 0, cjk = 0, arabic = 0, korean = 0
+  for (const ch of letters) {
+    const cp = ch.codePointAt(0)
+    if (cp >= 0x0400 && cp <= 0x04FF) cyrillic++
+    else if ((cp >= 0x4E00 && cp <= 0x9FFF) || (cp >= 0x3040 && cp <= 0x30FF)) cjk++
+    else if (cp >= 0x0600 && cp <= 0x06FF) arabic++
+    else if (cp >= 0xAC00 && cp <= 0xD7AF) korean++
+  }
+  const total = letters.length
+  if (total < 8) return null  // слишком мало букв
+  if (cyrillic >= 4 && cyrillic / total >= 0.15) return "Russian"
+  if (cjk     >= 4 && cjk     / total >= 0.15) return "Chinese"
+  if (arabic  >= 4 && arabic  / total >= 0.15) return "Arabic"
+  if (korean  >= 4 && korean  / total >= 0.15) return "Korean"
+  return null
+}
+
 export async function agentLoop(userMessage) {
   await initialize()
   await runHooks("UserPromptSubmit", { message: userMessage })
 
   const signal = arm()
+
+  // Авто-определяем язык на каждом сообщении, пока он не установлен
+  {
+    const config = getConfig()
+    if (!config.language) {
+      const detected = detectLanguage(userMessage)
+      if (detected) {
+        config.language = detected
+        await saveConfig()
+        // Обновляем мягкую инструкцию в уже живом system-сообщении
+        const msgs = getMessages()
+        if (msgs.length > 0 && msgs[0].role === "system") {
+          msgs[0] = { ...msgs[0], content: msgs[0].content.replace(
+            "Always respond in the same language the user is writing in. Do not switch languages mid-conversation.",
+            `Always respond in ${detected}. Code, commands, variable names, and technical identifiers must remain in English.`
+          )}
+          setMessages(msgs)
+        }
+      }
+    }
+  }
 
   // Инициализируем messages если сессия пустая
   if (getMessages().length === 0) {

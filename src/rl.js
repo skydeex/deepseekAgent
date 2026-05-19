@@ -22,12 +22,16 @@ export function askKey(prompt) {
     process.stdout.write(prompt)
     readline.emitKeypressEvents(process.stdin)
     rl.pause()
+    // Suppress readline's own echo during raw mode to avoid duplicate output
+    const origWriteToOutput = rl._writeToOutput
+    rl._writeToOutput = () => {}
     process.stdin.setRawMode(true)
     process.stdin.resume()
 
     function onKeypress(str, key) {
       process.stdin.setRawMode(false)
       process.stdin.removeListener('keypress', onKeypress)
+      rl._writeToOutput = origWriteToOutput
       rl.resume()
 
       if (!key) {

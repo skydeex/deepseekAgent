@@ -426,6 +426,40 @@ export async function cmdResume() {
 }
 
 // ─────────────────────────────────────────────
+// /lang [code|off] — установить язык ответов
+// ─────────────────────────────────────────────
+const LANG_ALIASES = {
+  ru: "Russian", en: "English", de: "German", fr: "French",
+  zh: "Chinese", ja: "Japanese", es: "Spanish", ar: "Arabic",
+  ko: "Korean",  pt: "Portuguese", it: "Italian", pl: "Polish"
+}
+
+export async function cmdLang(args) {
+  const config = getConfig()
+
+  if (!args) {
+    const cur = config.language ?? "авто (определяется по первому сообщению)"
+    print(c.bold(`\n[lang] Язык ответов: ${cur}\n`))
+    print(c.dim("  /lang ru       — установить русский\n"))
+    print(c.dim("  /lang en       — установить английский\n"))
+    print(c.dim("  /lang off      — авто-определение\n\n"))
+    return
+  }
+
+  if (args === "off" || args === "auto" || args === "clear") {
+    config.language = null
+    await saveConfig()
+    print(c.dim("[lang] Язык сброшен — авто-определение активно.\n\n"))
+    return
+  }
+
+  config.language = LANG_ALIASES[args.toLowerCase()] ?? args
+  await saveConfig()
+  print(c.dim(`[lang] Язык установлен: ${config.language}\n`))
+  print(c.dim("  Применится после /clear или в новой сессии.\n\n"))
+}
+
+// ─────────────────────────────────────────────
 // /optimizer — включить/выключить code optimizer
 // ─────────────────────────────────────────────
 export async function cmdOptimizer() {
@@ -506,6 +540,8 @@ export async function handleCommand(input) {
     case "batch":        await cmdBatch(args); return true
     case "loop":
     case "proactive":    await cmdLoop(args); return true
+    case "lang":
+    case "language":     await cmdLang(args); return true
     case "model":        cmdModel(); return true
     case "creative":     cmdCreative(); return true
     case "optimizer":    await cmdOptimizer(); return true
@@ -532,6 +568,7 @@ function printHelp() {
     ["/simplify [focus]", "параллельное ревью качества кода"],
     ["/batch <задача>",   "разбить задачу и выполнить параллельно"],
     ["/loop [N] <промпт>","запускать промпт каждые N минут (повтор — стоп)"],
+    ["/lang [код|off]",   "язык ответов (ru/en/de/…) или авто-определение"],
     ["/model",            "информация о доступных моделях"],
     ["/creative",         "переключить точный (t=0) ↔ рассуждения (t=0.5)"],
     ["/optimizer",        "включить/выключить code optimizer (PHP/JS/Go/CSS)"],
