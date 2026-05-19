@@ -39,31 +39,46 @@ Enable with the `/optimizer` command in chat, or set `"optimizer": true` in `.ag
 | `code_definition` | Extract a specific function body (with 3 lines of context above) |
 | `code_context` | Show N lines around a line number (target marked with `>>>`) |
 
-**50 language parsers, 106 extensions:** PHP, JS/JSX/TS/TSX, Go, CSS/SCSS/SASS/LESS, Astro, Python, Ruby, Rust, Java, C#, Swift, Kotlin, Bash, C/C++, Objective-C, Lua, Dart, Scala, Elixir, Perl, PowerShell, Groovy, Zig, Haskell, R, OCaml, F#, Clojure, Erlang, Crystal, Nim, Julia, Vue, Svelte, HCL/Terraform, SQL, GraphQL, Prisma, PL/SQL, Cypher, Solidity, D, Fortran, Common Lisp, Racket, Tcl, Nix, VHDL, Millfork, PL/M-80. For unsupported types the agent falls back to `read_file` automatically.
+**74 language parsers, 169 extensions:** PHP, JS/JSX/TS/TSX, Go, CSS/SCSS/SASS/LESS, Astro, Python, Ruby, Rust, Java, C#, Swift, Kotlin, Bash, C/C++, Objective-C, Lua, Dart, Scala, Elixir, Perl, PowerShell, Groovy, Zig, Haskell, R, OCaml, F#, Clojure, Erlang, Crystal, Nim, Julia, Vue, Svelte, HCL/Terraform, SQL, GraphQL, Prisma, PL/SQL, Cypher, Solidity, D, Fortran, Common Lisp, Racket, Tcl, Nix, VHDL, Millfork, PL/M-80, YAML, TOML, INI, LaTeX, Elm, Gleam, PureScript, Scheme, Lean, Idris, Assembly, Ada, Odin, Pascal, COBOL, Carbon, GLSL, Verilog, WAT, CMake, Makefile, CoffeeScript, Prolog, Smalltalk. For unsupported types the agent falls back to `read_file` automatically.
 
-### Adding a new language parser
+### Auto-generating support for a new language
 
-1. Create `src/parsers/python.js` (use `php.js` as a template):
+When `code_outline` encounters an unknown file type, it offers to generate a parser automatically:
+
+```
+Learn to read the structure of .wren files? [Enter] yes  [a] always  [n] not now  [Esc] skip:
+```
+
+- **Enter** — generate once, preview the result, then confirm saving
+- **a** — always generate without asking (saves `"generateParser": "always"` to settings)
+- **n** — skip for this session
+- **Esc** — skip silently
+
+You can also ask the agent directly: *"add support for .wren files"* — it will call `generate_parser` automatically.
+
+Control via `/parser` command or `"generateParser"` in `.agent/settings.json` (`"ask"` / `"always"` / `"never"`).
+
+### Adding a parser manually
+
+1. Create `src/parsers/mylang.js` (use `php.js` as a template):
 
 ```js
 import { strip, esc } from "./utils.js"
 
 export default {
-  extensions: [".py"],
+  extensions: [".wren"],
 
-  // Return list of functions/methods with line numbers
   outline(lines) {
     const results = []
     for (let i = 0; i < lines.length; i++) {
-      const m = lines[i].match(/^\s*(?:async\s+)?def\s+(\w+)\s*\(/)
+      const m = lines[i].match(/^\s*(?:\w+\s+)?(\w+)\s*\(/)
       if (m) results.push({ name: m[1] + "()", line: i + 1 })
     }
     return results
   },
 
-  // Return line number where the method starts, or null
   findMethodStart(lines, methodName) {
-    const pattern = new RegExp(`^\\s*(?:async\\s+)?def\\s+${esc(methodName)}\\s*\\(`)
+    const pattern = new RegExp(`^\\s*(?:\\w+\\s+)?${esc(methodName)}\\s*\\(`)
     for (let i = 0; i < lines.length; i++) {
       if (pattern.test(lines[i])) return i + 1
     }
@@ -75,11 +90,11 @@ export default {
 2. Register in `src/parsers/index.js`:
 
 ```js
-import pythonParser from "./python.js"
-register(pythonParser)
+import mylangParser from "./mylang.js"
+register(mylangParser)
 ```
 
-That's it — `code_outline` and `code_definition` will work with `.py` files immediately.
+That's it — `code_outline` and `code_definition` will work with `.wren` files immediately.
 
 ## Requirements
 
@@ -116,7 +131,8 @@ Type directly in the chat:
 | `/batch <task>`      | Agent decomposes the task and runs subtasks in parallel |
 | `/loop [N] <prompt>` | Run prompt every N seconds/minutes/hours; repeat `/loop` to stop |
 | `/resume`            | Restore previous session (auto-saved on exit) |
-| `/optimizer`         | Toggle code optimizer on/off (PHP/JS/Go/CSS/Astro) |
+| `/optimizer`         | Toggle code optimizer on/off |
+| `/parser [sub]`      | Manage auto-generation of language support: `ask`/`always`/`never`/`gen <file>` |
 | `/creative`          | Toggle precise mode (temperature=0) ↔ reasoning mode (temperature=0.5) |
 | `/lang [code\|off]`  | Set response language (`ru`, `en`, `de`, …) or reset to auto-detect |
 | `/model`             | Info about the current model |
@@ -137,6 +153,7 @@ Type directly in the chat:
 | `code_outline` | List all functions/methods with line numbers (optimizer) |
 | `code_definition` | Extract a single function body from a file (optimizer) |
 | `code_context` | Show lines around a specific line number (optimizer) |
+| `generate_parser` | Generate and install language support for an unknown file type (optimizer) |
 
 ## Permissions
 
@@ -174,13 +191,14 @@ Auto-created on first run at `.agent/settings.json`:
   "model": "deepseek-chat",
   "thinkingModel": "deepseek-reasoner",
   "contextLimit": 60000,
-  "alwaysAllow": ["read_file", "glob", "grep", "todo_read"],
+  "alwaysAllow": ["read_file", "glob", "grep", "todo_read", "generate_parser"],
   "neverAllow": [],
   "disallowedTools": [],
   "dangerouslyDisableSandbox": false,
   "mcpServers": {},
   "language": null,
-  "optimizer": false
+  "optimizer": false,
+  "generateParser": "ask"
 }
 ```
 
@@ -192,7 +210,8 @@ Auto-created on first run at `.agent/settings.json`:
 | `dangerouslyDisableSandbox` | Remove bash sandbox restrictions |
 | `mcpServers` | Connect MCP servers |
 | `language` | Response language (e.g. `"Russian"`, `"English"`). If null — agent follows the user's language |
-| `optimizer` | Enable code optimizer tools (`code_outline`, `code_definition`, `code_context`) |
+| `optimizer` | Enable code optimizer tools (`code_outline`, `code_definition`, `code_context`, `generate_parser`) |
+| `generateParser` | When to auto-generate language support: `"ask"` (default), `"always"`, or `"never"` |
 
 ## Memory (AGENT.md)
 

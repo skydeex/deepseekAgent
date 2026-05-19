@@ -37,31 +37,46 @@ agent update
 | `code_definition` | Извлечь тело конкретной функции (с 3 строками контекста выше) |
 | `code_context` | Показать N строк вокруг номера строки (целевая отмечена `>>>`) |
 
-**50 парсеров, 106 расширений:** PHP, JS/JSX/TS/TSX, Go, CSS/SCSS/SASS/LESS, Astro, Python, Ruby, Rust, Java, C#, Swift, Kotlin, Bash, C/C++, Objective-C, Lua, Dart, Scala, Elixir, Perl, PowerShell, Groovy, Zig, Haskell, R, OCaml, F#, Clojure, Erlang, Crystal, Nim, Julia, Vue, Svelte, HCL/Terraform, SQL, GraphQL, Prisma, PL/SQL, Cypher, Solidity, D, Fortran, Common Lisp, Racket, Tcl, Nix, VHDL, Millfork, PL/M-80. Для неподдерживаемых типов автоматически переключается на `read_file`.
+**74 парсера, 169 расширений:** PHP, JS/JSX/TS/TSX, Go, CSS/SCSS/SASS/LESS, Astro, Python, Ruby, Rust, Java, C#, Swift, Kotlin, Bash, C/C++, Objective-C, Lua, Dart, Scala, Elixir, Perl, PowerShell, Groovy, Zig, Haskell, R, OCaml, F#, Clojure, Erlang, Crystal, Nim, Julia, Vue, Svelte, HCL/Terraform, SQL, GraphQL, Prisma, PL/SQL, Cypher, Solidity, D, Fortran, Common Lisp, Racket, Tcl, Nix, VHDL, Millfork, PL/M-80, YAML, TOML, INI, LaTeX, Elm, Gleam, PureScript, Scheme, Lean, Idris, Assembly, Ada, Odin, Pascal, COBOL, Carbon, GLSL, Verilog, WAT, CMake, Makefile, CoffeeScript, Prolog, Smalltalk. Для неподдерживаемых типов автоматически переключается на `read_file`.
 
-### Добавить парсер для нового языка
+### Авто-генерация поддержки нового языка
 
-1. Создать `src/parsers/python.js` (за основу взять `php.js`):
+Когда `code_outline` встречает неизвестный тип файла, он предлагает сгенерировать поддержку автоматически:
+
+```
+Научить агента читать структуру Wren-файлов? [Enter] да  [a] всегда  [n] не сейчас  [Esc] пропустить:
+```
+
+- **Enter** — сгенерировать, показать результат, затем подтвердить сохранение
+- **a** — всегда генерировать без вопросов (сохраняет `"generateParser": "always"` в настройки)
+- **n** — пропустить в этой сессии
+- **Esc** — пропустить молча
+
+Можно попросить агента напрямую: *«добавь поддержку .wren файлов»* — он вызовет `generate_parser` автоматически.
+
+Управление через `/parser` или `"generateParser"` в `.agent/settings.json` (`"ask"` / `"always"` / `"never"`).
+
+### Добавить поддержку языка вручную
+
+1. Создать `src/parsers/mylang.js` (за основу взять `php.js`):
 
 ```js
 import { strip, esc } from "./utils.js"
 
 export default {
-  extensions: [".py"],
+  extensions: [".wren"],
 
-  // Вернуть список функций/методов с номерами строк
   outline(lines) {
     const results = []
     for (let i = 0; i < lines.length; i++) {
-      const m = lines[i].match(/^\s*(?:async\s+)?def\s+(\w+)\s*\(/)
+      const m = lines[i].match(/^\s*(?:\w+\s+)?(\w+)\s*\(/)
       if (m) results.push({ name: m[1] + "()", line: i + 1 })
     }
     return results
   },
 
-  // Вернуть номер строки начала метода, или null
   findMethodStart(lines, methodName) {
-    const pattern = new RegExp(`^\\s*(?:async\\s+)?def\\s+${esc(methodName)}\\s*\\(`)
+    const pattern = new RegExp(`^\\s*(?:\\w+\\s+)?${esc(methodName)}\\s*\\(`)
     for (let i = 0; i < lines.length; i++) {
       if (pattern.test(lines[i])) return i + 1
     }
@@ -73,11 +88,11 @@ export default {
 2. Зарегистрировать в `src/parsers/index.js`:
 
 ```js
-import pythonParser from "./python.js"
-register(pythonParser)
+import mylangParser from "./mylang.js"
+register(mylangParser)
 ```
 
-Готово — `code_outline` и `code_definition` сразу начнут работать с `.py` файлами.
+Готово — `code_outline` и `code_definition` сразу начнут работать с `.wren` файлами.
 
 ## Требования
 
@@ -114,7 +129,8 @@ agent --output-format=json "промпт"           # CI/скрипты — вы
 | `/batch <задача>` | Агент декомпозирует задачу и запускает подзадачи параллельно |
 | `/loop [N] <промпт>` | Запускать промпт каждые N секунд/минут/часов; повторный `/loop` останавливает |
 | `/resume` | Восстановить предыдущую сессию (сессия сохраняется автоматически при выходе) |
-| `/optimizer` | Включить/выключить code optimizer (PHP/JS/Go/CSS/Astro) |
+| `/optimizer` | Включить/выключить code optimizer |
+| `/parser [sub]` | Управление авто-генерацией поддержки языков: `ask`/`always`/`never`/`gen <файл>` |
 | `/creative` | Переключить точный режим (temperature=0) ↔ режим рассуждений (temperature=0.5) |
 | `/lang [код\|off]` | Язык ответов (`ru`, `en`, `de`, …) или сброс на авто-определение |
 | `/model` | Информация о текущей модели |
@@ -135,6 +151,7 @@ agent --output-format=json "промпт"           # CI/скрипты — вы
 | `code_outline` | Список функций/методов с номерами строк (optimizer) |
 | `code_definition` | Извлечь тело одной функции из файла (optimizer) |
 | `code_context` | Показать строки вокруг указанного номера строки (optimizer) |
+| `generate_parser` | Сгенерировать и установить поддержку неизвестного языка через LLM (optimizer) |
 
 ## Разрешения
 
@@ -172,13 +189,14 @@ agent --output-format=json "промпт"           # CI/скрипты — вы
   "model": "deepseek-chat",
   "thinkingModel": "deepseek-reasoner",
   "contextLimit": 60000,
-  "alwaysAllow": ["read_file", "glob", "grep", "todo_read"],
+  "alwaysAllow": ["read_file", "glob", "grep", "todo_read", "generate_parser"],
   "neverAllow": [],
   "disallowedTools": [],
   "dangerouslyDisableSandbox": false,
   "mcpServers": {},
   "language": null,
-  "optimizer": false
+  "optimizer": false,
+  "generateParser": "ask"
 }
 ```
 
@@ -190,7 +208,8 @@ agent --output-format=json "промпт"           # CI/скрипты — вы
 | `dangerouslyDisableSandbox` | Снять ограничения sandbox в bash |
 | `mcpServers` | Подключение MCP-серверов |
 | `language` | Язык ответов агента (например `"Russian"`, `"English"`). Если не задан — агент подстраивается под язык пользователя |
-| `optimizer` | Включить инструменты оптимизатора (`code_outline`, `code_definition`, `code_context`) |
+| `optimizer` | Включить инструменты оптимизатора (`code_outline`, `code_definition`, `code_context`, `generate_parser`) |
+| `generateParser` | Когда генерировать поддержку неизвестных языков: `"ask"` (по умолчанию), `"always"`, `"never"` |
 
 ## Память (AGENT.md)
 
