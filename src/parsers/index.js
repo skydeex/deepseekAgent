@@ -27,6 +27,16 @@ import swiftParser  from "./swift.js"
 import kotlinParser from "./kotlin.js"
 import bashParser   from "./bash.js"
 import cppParser    from "./cpp.js"
+import luaParser    from "./lua.js"
+import dartParser   from "./dart.js"
+import scalaParser  from "./scala.js"
+import elixirParser from "./elixir.js"
+import perlParser   from "./perl.js"
+import psParser     from "./powershell.js"
+import groovyParser from "./groovy.js"
+import zigParser    from "./zig.js"
+import haskellParser from "./haskell.js"
+import rParser      from "./r.js"
 
 const parsers = new Map()
 
@@ -51,6 +61,16 @@ register(swiftParser)
 register(kotlinParser)
 register(bashParser)
 register(cppParser)
+register(luaParser)
+register(dartParser)
+register(scalaParser)
+register(elixirParser)
+register(perlParser)
+register(psParser)
+register(groovyParser)
+register(zigParser)
+register(haskellParser)
+register(rParser)
 // register(yourParser)  ← добавить новый язык здесь
 
 export function getParser(ext) {
