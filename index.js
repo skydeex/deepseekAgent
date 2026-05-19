@@ -154,6 +154,7 @@ async function main() {
 
     try {
       await agentLoop(trimmed)
+      await saveSession()
       console.log()
     } catch (err) {
       console.error(c.red(`\nError: ${err.message}\n`))

@@ -1,37 +1,64 @@
 import fs from "fs/promises"
 import path from "path"
 
-const SESSION_FILE = path.join(process.cwd(), ".agent", "session.json")
+const SESSIONS_FILE = path.join(process.cwd(), ".agent", "sessions.json")
+const MAX_SESSIONS = 5
 
 let _messages = []
 let _checkpoints = []
 let _turnCount = 0
+let _sessionId = null  // уникальный ID текущей сессии, сбрасывается при /clear
 
 export function getMessages() { return _messages }
 export function setMessages(msgs) { _messages = msgs }
 export function pushMessage(msg) { _messages.push(msg) }
-export function clearMessages() { _messages = []; _turnCount = 0 }
+export function clearMessages() { _messages = []; _turnCount = 0; _sessionId = null }
 export function getTurnCount() { return _turnCount }
 export function incrementTurn() { _turnCount++ }
 export function setTurnCount(n) { _turnCount = n }
 
 export async function saveSession() {
   if (_messages.length === 0) return
+  if (!_sessionId) _sessionId = Date.now()
+
+  const userMsgs = _messages.filter(m => m.role === "user")
+  const firstMsg = typeof userMsgs[0]?.content === "string" ? userMsgs[0].content : ""
+  const lastMsg  = typeof userMsgs.at(-1)?.content === "string" ? userMsgs.at(-1).content : ""
+
+  const entry = {
+    sessionId:    _sessionId,
+    timestamp:    Date.now(),
+    turnCount:    _turnCount,
+    messageCount: _messages.length,
+    firstMessage: firstMsg.slice(0, 300),
+    lastMessage:  lastMsg.slice(0, 300),
+    messages:     _messages
+  }
+
   try {
-    await fs.mkdir(path.dirname(SESSION_FILE), { recursive: true })
-    await fs.writeFile(SESSION_FILE, JSON.stringify({
-      timestamp: Date.now(),
-      turnCount: _turnCount,
-      messages: _messages
-    }), "utf-8")
+    let sessions = []
+    try { sessions = JSON.parse(await fs.readFile(SESSIONS_FILE, "utf-8")) } catch {}
+
+    // Обновляем существующую запись той же сессии, иначе добавляем в начало
+    const existingIdx = sessions.findIndex(s => s.sessionId === _sessionId)
+    if (existingIdx >= 0) {
+      sessions[existingIdx] = entry
+    } else {
+      sessions.unshift(entry)
+    }
+
+    sessions = sessions.slice(0, MAX_SESSIONS)
+
+    await fs.mkdir(path.dirname(SESSIONS_FILE), { recursive: true })
+    await fs.writeFile(SESSIONS_FILE, JSON.stringify(sessions), "utf-8")
   } catch {}
 }
 
-export async function loadSession() {
+export async function loadSessions() {
   try {
-    return JSON.parse(await fs.readFile(SESSION_FILE, "utf-8"))
+    return JSON.parse(await fs.readFile(SESSIONS_FILE, "utf-8"))
   } catch {
-    return null
+    return []
   }
 }
 
@@ -53,7 +80,6 @@ export function restoreCheckpoint(index) {
   if (!cp) return false
   _messages = JSON.parse(JSON.stringify(cp.messages))
   _turnCount = cp.turn
-  // Удаляем чекпоинты после восстановленного
   _checkpoints = _checkpoints.slice(0, index + 1)
   return true
 }

@@ -5,12 +5,13 @@ import OpenAI from "openai"
 import {
   getMessages, setMessages, clearMessages,
   createCheckpoint, getCheckpoints, restoreCheckpoint,
-  getTurnCount, setTurnCount, loadSession
+  getTurnCount, setTurnCount, loadSessions
 } from "./session.js"
 import { compactIfNeeded } from "./compactor.js"
 import { getConfig } from "./config.js"
 import { getModel } from "./thinking.js"
 import { c, waitForInput } from "./ui.js"
+import { askKey } from "./rl.js"
 import { print } from "./output.js"
 import { saveConfig } from "./config.js"
 
@@ -368,41 +369,60 @@ export async function cmdLoop(args) {
 }
 
 // ─────────────────────────────────────────────
-// /resume — восстановить предыдущую сессию
+// /resume — восстановить одну из последних сессий
 // ─────────────────────────────────────────────
+function _resumeRelTime(ts) {
+  const d = Date.now() - ts
+  const m = Math.floor(d / 60000)
+  const h = Math.floor(d / 3600000)
+  const day = Math.floor(d / 86400000)
+  if (m < 1)   return "только что"
+  if (m < 60)  return `${m}м назад`
+  if (h < 24)  return `${h}ч назад`
+  if (day < 2) return "вчера"
+  return `${day}д назад`
+}
+
+function _resumeTurns(n) {
+  if (n % 10 === 1 && n % 100 !== 11) return `${n} ход`
+  if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return `${n} хода`
+  return `${n} ходов`
+}
+
 export async function cmdResume() {
   if (getMessages().length > 1) {
     print(c.dim("[resume] Сессия уже активна. Сначала выполните /clear.\n"))
     return
   }
 
-  const saved = await loadSession()
-  if (!saved) {
-    print(c.dim("[resume] Нет сохранённой сессии.\n"))
+  const sessions = await loadSessions()
+  if (!sessions.length) {
+    print(c.dim("[resume] Нет сохранённых сессий.\n"))
     return
   }
 
-  const date = new Date(saved.timestamp).toLocaleString()
-  const userMsgs = saved.messages.filter(m => m.role === "user")
-  const lastMsg = userMsgs.at(-1)
-  const preview = typeof lastMsg?.content === "string"
-    ? lastMsg.content.slice(0, 80) + (lastMsg.content.length > 80 ? "…" : "")
-    : ""
+  print(c.bold("\nСохранённые сессии:\n\n"))
+  sessions.forEach((s, i) => {
+    const time  = _resumeRelTime(s.timestamp).padEnd(11)
+    const turns = _resumeTurns(s.turnCount).padEnd(8)
+    const desc  = (s.firstMessage || "").replace(/\s+/g, " ").slice(0, 70)
+    const tail  = s.firstMessage.length > 70 ? "…" : ""
+    print(` ${c.cyan(`[${i + 1}]`)}  ${c.dim(time)}  ${c.dim(turns)}  "${desc}${tail}"\n`)
+  })
 
-  print(c.bold(`\nСохранённая сессия: ${date}\n`))
-  print(c.dim(`  Ходов: ${saved.turnCount}  Сообщений: ${saved.messages.length}\n`))
-  if (preview) print(c.dim(`  Последнее: "${preview}"\n`))
-  print(c.yellow("\nВосстановить? [y/N] "))
+  const keys = sessions.map((_, i) => i + 1).join("/")
+  const answer = await askKey(c.yellow(`\n[${keys}] выбрать  [Esc] отмена: `))
 
-  const answer = (await waitForInput()).trim().toLowerCase()
-  if (answer !== "y") {
-    print(c.dim("[resume] Отменено.\n"))
+  const idx = parseInt(answer) - 1
+  if (isNaN(idx) || idx < 0 || idx >= sessions.length) {
+    print(c.dim("\n[resume] Отменено.\n"))
     return
   }
 
-  setMessages(saved.messages)
-  setTurnCount(saved.turnCount)
-  print(c.dim(`[resume] Сессия восстановлена. Ходов: ${saved.turnCount}, сообщений: ${saved.messages.length}.\n\n`))
+  const chosen = sessions[idx]
+  setMessages(chosen.messages)
+  setTurnCount(chosen.turnCount)
+  print(c.dim(`\n[resume] Сессия #${idx + 1} восстановлена. ${_resumeTurns(chosen.turnCount)}, ${chosen.messageCount} сообщений.\n\n`))
 }
 
 // ─────────────────────────────────────────────
