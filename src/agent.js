@@ -9,6 +9,7 @@ import { webSearchTool } from "./tools/web_search.js"
 import { todoWriteTool, todoReadTool } from "./tools/todo.js"
 import { taskTool, taskResultTool, initTaskTool } from "./tools/task.js"
 import { codeOutlineTool, codeDefinitionTool, codeContextTool } from "./tools/optimizer.js"
+import { generateParserTool } from "./tools/generate_parser.js"
 import { loadMemory } from "./memory.js"
 import { loadMcpTools } from "./mcp.js"
 import { checkPermission } from "./permissions.js"
@@ -38,7 +39,7 @@ let _initialized = false
 let TOOLS = []
 let _mcpTools = []
 
-const OPTIMIZER_TOOLS = [codeOutlineTool, codeDefinitionTool, codeContextTool]
+const OPTIMIZER_TOOLS = [codeOutlineTool, codeDefinitionTool, codeContextTool, generateParserTool]
 
 export function rebuildTools() {
   const { disallowedTools, optimizer } = getConfig()

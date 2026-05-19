@@ -6,15 +6,14 @@ const DEFAULTS = {
   thinkingModel: "deepseek-reasoner",
   contextLimit: 60000,
   temperature: 0,
-  alwaysAllow: ["read_file", "glob", "grep", "todo_read"],
+  alwaysAllow: ["read_file", "glob", "grep", "todo_read", "generate_parser"],
   neverAllow: [],
   disallowedTools: [],
   dangerouslyDisableSandbox: false,
   mcpServers: {},
   language: null,
   optimizer: false,
-  generateParser: "ask",       // "ask" | "always" | "never"
-  generateParserNever: []      // расширения, для которых никогда не генерировать
+  generateParser: "ask"        // "ask" | "always" | "never"
 }
 
 let _config = null

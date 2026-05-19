@@ -17,6 +17,9 @@ import { registerDynamic } from "./index.js"
 const SAMPLE_LINES = 80   // строк файла отправляем в промпт
 const MAX_RETRIES  = 2    // попыток генерации при 0 результатах
 
+// Расширения, для которых пользователь нажал "n" — пропускаем до конца сессии
+const _sessionSkipped = new Set()
+
 // ─── Определение языка по расширению + содержимому ──────────────────
 
 const EXT_NAMES = {
@@ -86,7 +89,7 @@ export async function promptGenerate(ext, langName) {
   const config = getConfig()
 
   if (config.generateParser === "never") return "skip"
-  if ((config.generateParserNever ?? []).includes(ext)) return "skip"
+  if (_sessionSkipped.has(ext)) return "skip"
   if (config.generateParser === "always") return "yes"
 
   const nameHint = langName !== ext.slice(1).toUpperCase()
@@ -97,7 +100,7 @@ export async function promptGenerate(ext, langName) {
     c.yellow(`\n┌ [?] Неизвестный тип файла: `) + c.bold(ext) + nameHint + "\n" +
     c.yellow(`│     Сгенерировать парсер для optimizer?\n`) +
     c.yellow(`└ `) +
-    c.dim(`[Enter] да  [a] всегда  [n] никогда для ${ext}  [Esc] пропустить: `)
+    c.dim(`[Enter] да  [a] всегда  [n] не сейчас  [Esc] пропустить: `)
 
   const key = await askKey(prompt)
 
@@ -113,9 +116,9 @@ export async function promptGenerate(ext, langName) {
   }
 
   if (key === "n") {
-    config.generateParserNever = [...(config.generateParserNever ?? []), ext]
-    await saveConfig()
-    process.stdout.write(c.dim(`  [${ext} добавлен в generateParserNever]\n`))
+    // Пропускаем только до конца сессии — не сохраняем в конфиг
+    _sessionSkipped.add(ext)
+    process.stdout.write(c.dim(`  [${ext} пропущен до конца сессии]\n`))
     return "skip"
   }
 
@@ -337,36 +340,15 @@ async function installParser(langName, ext, code) {
   return path.relative(process.cwd(), filePath)
 }
 
-// ─── Главная функция ────────────────────────────────────────────────
+// ─── Общая логика генерации ─────────────────────────────────────────
 
-/**
- * Попытаться сгенерировать и установить парсер для файла.
- * Возвращает parser-объект если успешно, иначе null.
- */
-export async function tryGenerateParser(filePath) {
+async function runGeneration(filePath, lines, langName, { silent = false } = {}) {
   const ext = path.extname(filePath).toLowerCase()
-  if (!ext) return null
 
-  // Читаем файл для образца
-  let lines
-  try {
-    const content = await fs.readFile(filePath, "utf-8")
-    lines = content.split("\n")
-  } catch {
-    return null
-  }
+  process.stdout.write(c.dim(`  ⟳ Генерирую парсер для ${langName}...`))
 
-  const langName = detectLanguage(ext, lines)
-
-  // Спрашиваем пользователя
-  const decision = await promptGenerate(ext, langName)
-  if (decision !== "yes") return null
-
-  // Генерируем с retry при 0 результатах
-  process.stdout.write(c.dim(`  ⟳ Генерирую парсер для ${langName}${c.reset("")}`))
-
-  let code       = null
-  let validation = null
+  let code        = null
+  let validation  = null
   let prevAttempt = null
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -378,27 +360,25 @@ export async function tryGenerateParser(filePath) {
     }
 
     validation = await validateParser(code, lines)
-
     if (validation.count > 0) break
 
-    if (!validation.ok) {
-      process.stdout.write(c.dim(` [ошибка: ${validation.error}]`))
-    } else {
-      process.stdout.write(c.dim(` [0 результатов, повтор...]`))
-    }
+    process.stdout.write(
+      validation.ok
+        ? c.dim(` [0 результатов, повтор...]`)
+        : c.dim(` [ошибка: ${validation.error}, повтор...]`)
+    )
     prevAttempt = { code }
   }
 
   process.stdout.write("\n")
 
-  // Результат валидации
   if (!validation.ok) {
     console.log(c.red(`  ✗ Парсер не загрузился: ${validation.error ?? "неизвестная ошибка"}`))
     return null
   }
 
   if (validation.count === 0) {
-    console.log(c.yellow(`  ⚠ Парсер найден, но не обнаружил элементов в файле. Пропускаю.`))
+    console.log(c.yellow(`  ⚠ Парсер не обнаружил элементов в файле.`))
     return null
   }
 
@@ -411,26 +391,81 @@ export async function tryGenerateParser(filePath) {
     console.log(c.dim(`    ... и ещё ${validation.count - 12}`))
   }
 
-  // Подтверждение сохранения
+  // В silent-режиме (вызов от агента) — сохраняем сразу без вопросов
+  if (silent) {
+    try {
+      const relPath = await installParser(langName, ext, code)
+      console.log(c.green(`  ✓ Парсер сохранён: ${relPath}`))
+    } catch (e) {
+      console.log(c.yellow(`  ⚠ Не удалось записать файл (${e.message}), работает в памяти.`))
+      registerDynamic(validation.parser)
+    }
+    return validation.parser
+  }
+
+  // Интерактивный режим — спрашиваем
   const saveKey = await askKey(
     c.yellow(`\n  Сохранить парсер? `) +
     c.dim(`[Enter] да  [Esc] нет: `)
   )
   if (saveKey !== "" && saveKey !== "y") {
     console.log(c.dim("  Парсер не сохранён (работает только в этой сессии)."))
-    // Всё равно регистрируем в памяти для текущей сессии
     registerDynamic(validation.parser)
     return validation.parser
   }
 
-  // Устанавливаем
   try {
     const relPath = await installParser(langName, ext, code)
     console.log(c.green(`  ✓ Парсер сохранён: ${relPath}`))
     return validation.parser
   } catch (e) {
     console.log(c.red(`  ✗ Не удалось сохранить: ${e.message}`))
-    // Парсер всё равно зарегистрирован в памяти
     return validation.parser
   }
+}
+
+// ─── Публичные функции ───────────────────────────────────────────────
+
+/**
+ * Интерактивная генерация: спрашивает пользователя, показывает preview,
+ * предлагает сохранить. Вызывается автоматически из optimizer tools.
+ */
+export async function tryGenerateParser(filePath) {
+  const ext = path.extname(filePath).toLowerCase()
+  if (!ext) return null
+
+  let lines
+  try {
+    lines = (await fs.readFile(filePath, "utf-8")).split("\n")
+  } catch {
+    return null
+  }
+
+  const langName = detectLanguage(ext, lines)
+  const decision = await promptGenerate(ext, langName)
+  if (decision !== "yes") return null
+
+  return runGeneration(filePath, lines, langName, { silent: false })
+}
+
+/**
+ * Тихая генерация без диалога: для вызова агентом по просьбе пользователя.
+ * Возвращает { parser, ext, langName, items } или null при ошибке.
+ */
+export async function generateParserSilent(filePath) {
+  const ext = path.extname(filePath).toLowerCase()
+  if (!ext) return null
+
+  let lines
+  try {
+    lines = (await fs.readFile(filePath, "utf-8")).split("\n")
+  } catch (e) {
+    throw new Error(`Не удалось прочитать файл: ${e.message}`)
+  }
+
+  const langName = detectLanguage(ext, lines)
+  const parser   = await runGeneration(filePath, lines, langName, { silent: true })
+  if (!parser) return null
+
+  return { parser, ext, langName }
 }
