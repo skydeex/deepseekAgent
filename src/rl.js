@@ -248,7 +248,7 @@ export function askKey(prompt) {
       process.stdin.setRawMode(false)
       process.stdin.removeListener('keypress', onKeypress)
       rl._writeToOutput = origWriteToOutput
-      rl.resume()
+      if (!rl.closed) rl.resume()
 
       if (!key) {
         process.stdout.write('\n')
