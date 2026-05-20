@@ -9,7 +9,8 @@ export function ask(prompt) {
 // Ввод с автодополнением /команд по стрелке вниз / Tab.
 // commands: массив [cmd, desc] из SLASH_COMMANDS
 export function askWithComplete(prompt, commands) {
-  if (!process.stdin.isTTY) {
+  // Git Bash на Windows не выставляет isTTY, но setRawMode есть — проверяем по нему
+  if (typeof process.stdin.setRawMode !== 'function') {
     return new Promise(resolve => rl.question(prompt, resolve))
   }
 
@@ -26,7 +27,17 @@ export function askWithComplete(prompt, commands) {
     rl.pause()
     const origWriteToOutput = rl._writeToOutput
     rl._writeToOutput = () => {}
-    process.stdin.setRawMode(true)
+
+    try {
+      process.stdin.setRawMode(true)
+    } catch {
+      // Терминал не поддерживает raw mode — откат к обычному вводу
+      rl._writeToOutput = origWriteToOutput
+      rl.resume()
+      rl.question(prompt, resolve)
+      return
+    }
+
     process.stdin.resume()
     process.stdout.write(prompt)
 
@@ -75,7 +86,8 @@ export function askWithComplete(prompt, commands) {
         const [cmd, desc] = sugs[i]
         const name = cmd.split(' ')[0]
         const text = `  ${name.padEnd(22)}${desc}`
-        readline.moveCursor(process.stdout, 0, 1)
+        // \n создаёт строку даже если её нет (в отличие от \x1b[1B)
+        process.stdout.write('\n')
         readline.clearLine(process.stdout, 0)
         readline.cursorTo(process.stdout, 0)
         process.stdout.write(i === selectedIdx ? `\x1b[7m${text}\x1b[0m` : `\x1b[2m${text}\x1b[0m`)
@@ -217,7 +229,7 @@ export function askWithComplete(prompt, commands) {
 //   str    — любой другой символ
 export function askKey(prompt) {
   return new Promise((resolve) => {
-    if (!process.stdin.isTTY) {
+    if (typeof process.stdin.setRawMode !== 'function') {
       process.stdout.write(prompt + '\n')
       resolve('')
       return

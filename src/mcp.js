@@ -17,7 +17,7 @@ export async function loadMcpTools() {
         args: cfg.args ?? []
       })
 
-      const client = new Client({ name: "deepseek-agent", version: "0.1.0" })
+      const client = new Client({ name: "deepseek-agent", version: "0.2.0" })
       await client.connect(transport)
       mcpClients.push(client)
 
