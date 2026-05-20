@@ -1,6 +1,6 @@
 import readline from "readline"
 
-export const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+export const rl = readline.createInterface({ input: process.stdin, output: process.stdout, historySize: 200 })
 
 export function ask(prompt) {
   return new Promise(resolve => rl.question(prompt, resolve))

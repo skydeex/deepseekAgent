@@ -147,6 +147,8 @@ async function main() {
 
     // Команды начинаются с /
     if (trimmed.startsWith("/")) {
+      // Не сохранять /команды в историю стрелок
+      if (rl.history.length > 0) rl.history.shift()
       const handled = await handleCommand(trimmed)
       if (!handled) console.log(c.dim(`Unknown command: ${trimmed.split(" ")[0]}. Type /help for list.\n`))
       continue
