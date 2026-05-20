@@ -38,8 +38,8 @@ import { createWorktree, removeWorktree, isInWorktree } from "./src/worktree.js"
 import { disconnectMcp } from "./src/mcp.js"
 import { printBanner, c } from "./src/ui.js"
 import { setOutputFormat, isJson } from "./src/output.js"
-import { handleCommand } from "./src/commands.js"
-import { rl, ask, askKey } from "./src/rl.js"
+import { handleCommand, SLASH_COMMANDS } from "./src/commands.js"
+import { rl, ask, askKey, askWithComplete } from "./src/rl.js"
 import { interrupt, isArmed } from "./src/interrupt.js"
 import { saveSession } from "./src/session.js"
 
@@ -141,18 +141,20 @@ async function main() {
   await maybeInit()
 
   while (true) {
-    const input = await ask(c.bold("You: "))
+    const input = await askWithComplete(c.bold("You: "), SLASH_COMMANDS)
     const trimmed = input.trim()
     if (!trimmed || trimmed === "exit" || trimmed === "/exit" || trimmed === "/quit") break
 
     // Команды начинаются с /
     if (trimmed.startsWith("/")) {
-      // Не сохранять /команды в историю стрелок
-      if (rl.history.length > 0) rl.history.shift()
       const handled = await handleCommand(trimmed)
       if (!handled) console.log(c.dim(`Unknown command: ${trimmed.split(" ")[0]}. Type /help for list.\n`))
       continue
     }
+
+    // Добавить задачу в историю стрелок (только пользовательские задания, не /команды)
+    rl.history.unshift(trimmed)
+    if (rl.history.length > 200) rl.history.pop()
 
     try {
       await agentLoop(trimmed)

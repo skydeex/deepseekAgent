@@ -6,6 +6,210 @@ export function ask(prompt) {
   return new Promise(resolve => rl.question(prompt, resolve))
 }
 
+// Ввод с автодополнением /команд по стрелке вниз / Tab.
+// commands: массив [cmd, desc] из SLASH_COMMANDS
+export function askWithComplete(prompt, commands) {
+  if (!process.stdin.isTTY) {
+    return new Promise(resolve => rl.question(prompt, resolve))
+  }
+
+  return new Promise((resolve) => {
+    let buffer = ''
+    let historyIdx = -1
+    let suggestionsShown = 0  // сколько строк подсказок сейчас на экране
+    let selectedIdx = -1      // выбранная подсказка (-1 = нет)
+
+    // Видимая длина промпта (без ANSI-кодов)
+    const promptLen = prompt.replace(/\x1b\[[0-9;]*m/g, '').length
+
+    readline.emitKeypressEvents(process.stdin)
+    rl.pause()
+    const origWriteToOutput = rl._writeToOutput
+    rl._writeToOutput = () => {}
+    process.stdin.setRawMode(true)
+    process.stdin.resume()
+    process.stdout.write(prompt)
+
+    // Команды, начинающиеся с текущего буфера
+    function match() {
+      if (!buffer.startsWith('/')) return []
+      const q = buffer.toLowerCase()
+      return commands.filter(([cmd]) => cmd.split(' ')[0].toLowerCase().startsWith(q)).slice(0, 7)
+    }
+
+    // Перерисовать строку ввода
+    function redraw() {
+      readline.cursorTo(process.stdout, 0)
+      readline.clearLine(process.stdout, 0)
+      process.stdout.write(prompt + buffer)
+    }
+
+    // Убрать строки подсказок, вернуть курсор в конец строки ввода
+    function clearSugs() {
+      if (suggestionsShown === 0) return
+      for (let i = 0; i < suggestionsShown; i++) {
+        readline.moveCursor(process.stdout, 0, 1)
+        readline.clearLine(process.stdout, 0)
+      }
+      readline.moveCursor(process.stdout, 0, -suggestionsShown)
+      readline.cursorTo(process.stdout, promptLen + buffer.length)
+      suggestionsShown = 0
+    }
+
+    // Нарисовать/обновить подсказки под строкой ввода
+    function drawSugs(sugs) {
+      // Стереть старые
+      if (suggestionsShown > 0) {
+        for (let i = 0; i < suggestionsShown; i++) {
+          readline.moveCursor(process.stdout, 0, 1)
+          readline.clearLine(process.stdout, 0)
+        }
+        readline.moveCursor(process.stdout, 0, -suggestionsShown)
+        suggestionsShown = 0
+      }
+      if (sugs.length === 0) {
+        readline.cursorTo(process.stdout, promptLen + buffer.length)
+        return
+      }
+      for (let i = 0; i < sugs.length; i++) {
+        const [cmd, desc] = sugs[i]
+        const name = cmd.split(' ')[0]
+        const text = `  ${name.padEnd(22)}${desc}`
+        readline.moveCursor(process.stdout, 0, 1)
+        readline.clearLine(process.stdout, 0)
+        readline.cursorTo(process.stdout, 0)
+        process.stdout.write(i === selectedIdx ? `\x1b[7m${text}\x1b[0m` : `\x1b[2m${text}\x1b[0m`)
+      }
+      readline.moveCursor(process.stdout, 0, -sugs.length)
+      readline.cursorTo(process.stdout, promptLen + buffer.length)
+      suggestionsShown = sugs.length
+    }
+
+    function finish(result) {
+      clearSugs()
+      process.stdout.write('\n')
+      process.stdin.setRawMode(false)
+      process.stdin.removeListener('keypress', onKeypress)
+      rl._writeToOutput = origWriteToOutput
+      rl.resume()
+      resolve(result)
+    }
+
+    function onKeypress(str, key) {
+      if (!key) return
+
+      // Ctrl+C
+      if (key.sequence === '\x03') {
+        clearSugs()
+        process.stdout.write('^C\n')
+        process.stdin.setRawMode(false)
+        process.stdin.removeListener('keypress', onKeypress)
+        rl._writeToOutput = origWriteToOutput
+        rl.resume()
+        resolve('\x03')
+        return
+      }
+
+      // Enter — если выбрана подсказка, применить её
+      if (key.name === 'return' || key.name === 'enter') {
+        if (selectedIdx >= 0 && suggestionsShown > 0) {
+          const sugs = match()
+          if (sugs[selectedIdx]) {
+            buffer = sugs[selectedIdx][0].split(' ')[0]
+            redraw()
+          }
+        }
+        finish(buffer)
+        return
+      }
+
+      // Escape — закрыть подсказки
+      if (key.name === 'escape') {
+        selectedIdx = -1
+        clearSugs()
+        return
+      }
+
+      // Tab — автодополнение первой/выбранной подсказки
+      if (key.name === 'tab') {
+        const sugs = match()
+        if (sugs.length > 0) {
+          buffer = sugs[selectedIdx >= 0 ? selectedIdx : 0][0].split(' ')[0]
+          selectedIdx = -1
+          redraw()
+          drawSugs(match())
+        }
+        return
+      }
+
+      // Стрелка вверх
+      if (key.name === 'up') {
+        const sugs = match()
+        if (sugs.length > 0 && suggestionsShown > 0) {
+          // Навигация по подсказкам
+          selectedIdx = selectedIdx <= 0 ? sugs.length - 1 : selectedIdx - 1
+          drawSugs(sugs)
+        } else {
+          // Навигация по истории
+          historyIdx = Math.min(historyIdx + 1, rl.history.length - 1)
+          if (historyIdx >= 0 && rl.history[historyIdx] !== undefined) {
+            buffer = rl.history[historyIdx]
+            clearSugs()
+            redraw()
+          }
+        }
+        return
+      }
+
+      // Стрелка вниз
+      if (key.name === 'down') {
+        const sugs = match()
+        if (sugs.length > 0 && suggestionsShown > 0) {
+          // Навигация по подсказкам
+          selectedIdx = selectedIdx >= sugs.length - 1 ? 0 : selectedIdx + 1
+          drawSugs(sugs)
+        } else {
+          // Навигация по истории
+          if (historyIdx > 0) {
+            historyIdx--
+            buffer = rl.history[historyIdx] ?? ''
+          } else {
+            historyIdx = -1
+            buffer = ''
+          }
+          clearSugs()
+          redraw()
+        }
+        return
+      }
+
+      // Backspace
+      if (key.name === 'backspace') {
+        if (buffer.length > 0) {
+          buffer = buffer.slice(0, -1)
+          selectedIdx = -1
+          redraw()
+          drawSugs(match())
+        }
+        return
+      }
+
+      // Игнорировать управляющие комбинации
+      if (key.ctrl || key.meta) return
+
+      // Обычный символ
+      if (str) {
+        buffer += str
+        selectedIdx = -1
+        process.stdout.write(str)
+        drawSugs(match())
+      }
+    }
+
+    process.stdin.on('keypress', onKeypress)
+  })
+}
+
 // Читает один keypress без Enter. Возвращает:
 //   ''     — Enter/Return
 //   '\x1b' — Escape
