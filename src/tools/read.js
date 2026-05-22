@@ -4,7 +4,7 @@ import { BINARY_EXTS } from "../binary.js"
 
 export const readTool = {
   name: "read_file",
-  description: "Read the contents of a text file. For large files use offset+limit to read specific line ranges instead of the whole file.",
+  description: "Read the contents of a text file. Output includes line numbers in format 'N→ content' — these are for reference only and must NOT be included in old_string when using edit_file. For large files use offset+limit to read specific line ranges.",
   parameters: {
     type: "object",
     properties: {
