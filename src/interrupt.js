@@ -20,3 +20,8 @@ export function interrupt() {
 export function isArmed() {
   return _controller !== null
 }
+
+// Возвращает текущий AbortSignal (или null если агент не активен)
+export function getSignal() {
+  return _controller?.signal ?? null
+}

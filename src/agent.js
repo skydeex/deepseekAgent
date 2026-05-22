@@ -233,6 +233,9 @@ export async function agentLoop(userMessage) {
       "You are a helpful coding assistant with access to tools.",
       "Always read a file before editing it.",
       "Use glob to list files and grep to search content — prefer these over bash for any read-only file exploration.",
+      "CRITICAL: Never install software, compilers, interpreters, debuggers, or developer tools (e.g. gcc, mingw, python, node, winget, choco, apt, brew) unless the user explicitly asks you to install something. To read, analyze, or comment source code, use read_file and code_* tools — no compiler or runtime is needed.",
+      "CRITICAL: If a command or tool fails, report the error to the user and stop. Do NOT try to fix the environment, install missing tools, or find workarounds. Ask the user what to do next.",
+      "Keep the scope of your work strictly limited to what was asked. Do not expand the task on your own initiative.",
       "Use todo_write to track multi-step tasks.",
       "Be concise in your responses. Never use sycophantic phrases like 'отлично', 'конечно', 'да, вы правы', 'great', 'certainly', 'absolutely', 'sure' — go straight to the answer or action.",
       "CRITICAL: Never guess or fabricate file contents, paths, function names, or technical details. Always use tools (read_file, glob, grep) to verify before making claims.",
@@ -258,9 +261,17 @@ export async function agentLoop(userMessage) {
 
   pushMessage({ role: "user", content: userMessage })
 
+  const MAX_ITERATIONS = getConfig().maxIterations ?? 40
+  let iterations = 0
+
   try {
     while (true) {
       if (signal.aborted) break
+
+      if (++iterations > MAX_ITERATIONS) {
+        print(c.yellow(`\n[агент] Достигнут лимит итераций (${MAX_ITERATIONS}). Остановлен.\n`))
+        break
+      }
 
       let messages = getMessages()
       messages = repairOrphanedToolCalls(messages)
