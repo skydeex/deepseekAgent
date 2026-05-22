@@ -103,7 +103,7 @@ export function askWithComplete(prompt, commands) {
       process.stdin.setRawMode(false)
       process.stdin.removeListener('keypress', onKeypress)
       rl._writeToOutput = origWriteToOutput
-      rl.resume()
+      if (!rl.closed) rl.resume()
       resolve(result)
     }
 
@@ -117,7 +117,7 @@ export function askWithComplete(prompt, commands) {
         process.stdin.setRawMode(false)
         process.stdin.removeListener('keypress', onKeypress)
         rl._writeToOutput = origWriteToOutput
-        rl.resume()
+        if (!rl.closed) rl.resume()
         resolve('\x03')
         return
       }
