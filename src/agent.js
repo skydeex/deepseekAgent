@@ -184,6 +184,26 @@ function detectLanguage(text) {
   return null
 }
 
+function repairOrphanedToolCalls(messages) {
+  const result = []
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i]
+    result.push(msg)
+    if (msg.role === "assistant" && msg.tool_calls?.length) {
+      const answered = new Set()
+      for (let j = i + 1; j < messages.length && messages[j].role === "tool"; j++) {
+        answered.add(messages[j].tool_call_id)
+      }
+      for (const tc of msg.tool_calls) {
+        if (!answered.has(tc.id)) {
+          result.push({ role: "tool", tool_call_id: tc.id, content: "[interrupted]" })
+        }
+      }
+    }
+  }
+  return result
+}
+
 export async function agentLoop(userMessage) {
   await initialize()
   await runHooks("UserPromptSubmit", { message: userMessage })
@@ -249,6 +269,7 @@ export async function agentLoop(userMessage) {
       if (signal.aborted) break
 
       let messages = getMessages()
+      messages = repairOrphanedToolCalls(messages)
       messages = await compactIfNeeded(messages, getClient())
       setMessages(messages)
 
