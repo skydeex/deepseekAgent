@@ -2,6 +2,7 @@ import fs from "fs/promises"
 import path from "path"
 import fg from "fast-glob"
 import { BINARY_EXTS } from "../binary.js"
+import { getIgnorePatterns } from "../ignore.js"
 
 export const grepTool = {
   name: "grep",
@@ -23,7 +24,7 @@ export const grepTool = {
     const files = await fg(globPattern, {
       cwd: dir,
       dot: true,
-      ignore: ["**/node_modules/**", "**/.git/**"]
+      ignore: getIgnorePatterns()
     })
 
     const regex = new RegExp(pattern, ignoreCase ? "i" : "")

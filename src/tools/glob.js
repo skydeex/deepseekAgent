@@ -1,4 +1,5 @@
 import fg from "fast-glob"
+import { getIgnorePatterns } from "../ignore.js"
 
 export const globTool = {
   name: "glob",
@@ -13,7 +14,7 @@ export const globTool = {
   },
   isReadOnly: true,
   async execute({ pattern, cwd }) {
-    const files = await fg(pattern, { cwd, dot: true })
+    const files = await fg(pattern, { cwd, dot: true, ignore: getIgnorePatterns() })
     return files.join("\n")
   }
 }

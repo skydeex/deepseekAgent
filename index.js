@@ -43,6 +43,7 @@ import { handleCommand, SLASH_COMMANDS } from "./src/commands.js"
 import { rl, ask, askKey, askWithComplete } from "./src/rl.js"
 import { interrupt, isArmed } from "./src/interrupt.js"
 import { saveSession } from "./src/session.js"
+import { initIgnore } from "./src/ignore.js"
 
 if (!process.env.DEEPSEEK_API_KEY) {
   console.error(c.red("Error: DEEPSEEK_API_KEY is not set. Copy .env.example to .env and add your key."))
@@ -176,6 +177,7 @@ async function main() {
   startUpdateCheck()
   printBanner()
   await maybeInit()
+  await initIgnore()
   await offerUpdate()
 
   while (true) {

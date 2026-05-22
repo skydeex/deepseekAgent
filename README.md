@@ -146,8 +146,8 @@ Type directly in the chat:
 | `read_file` | Reads a text file. Binary files (exe, zip, png, mp4, etc.) are blocked automatically |
 | `write_file` | Creates or overwrites a file. Shows colored diff: removed lines on dark red, added on green |
 | `edit_file` | Exact string replacement. Shows diff with 3 lines of context around the change |
-| `glob` | Find files by pattern (`src/**/*.js`). Binary files excluded |
-| `grep` | Search file contents with regex support. Binary files skipped, limit 200 matches |
+| `glob` | Find files by pattern (`src/**/*.js`). Binary files and paths from ignore rules excluded |
+| `grep` | Search file contents with regex support. Binary files skipped, ignore rules applied, limit 200 matches |
 | `bash` | Run shell commands (sandboxed by default). Output truncated at 8,000 chars |
 | `web_search` | DuckDuckGo search, no API key required |
 | `todo_write` / `todo_read` | Task list with dependencies within a session |
@@ -156,6 +156,26 @@ Type directly in the chat:
 | `code_definition` | Extract a single function body from a file (optimizer) |
 | `code_context` | Show lines around a specific line number (optimizer) |
 | `generate_parser` | Generate and install language support for an unknown file type (optimizer) |
+
+## Search Ignore (.agentignore)
+
+On first run the agent creates `.agentignore` in the project root. Both `glob` and `grep` respect it — matching paths are excluded before results are returned to the model.
+
+The following files are read and merged (each overrides the previous):
+
+| File | Source |
+|---|---|
+| `.agentignore` | Agent-specific (primary, auto-created) |
+| `.claudeignore` | Claude Code |
+| `.cursorignore` | Cursor |
+| `.aiderignore` | Aider |
+| `.copilotignore` | GitHub Copilot |
+
+`node_modules/` and `.git/` are always excluded regardless of ignore files.
+
+`.gitignore` is intentionally not read — it often lists generated files (`dist/`, `build/`, etc.) that the agent may need to inspect.
+
+Syntax is the same as `.gitignore`: `node_modules/`, `*.log`, `/dist/`, etc. The patterns are loaded once at startup and cached for the session.
 
 ## Permissions
 

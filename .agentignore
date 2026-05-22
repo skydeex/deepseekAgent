@@ -1,0 +1,43 @@
+# Agent ignore patterns — auto-created by deepseek-agent
+# Add paths/patterns to exclude from file search tools (glob, grep)
+# Syntax is the same as .gitignore
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.nuxt/
+.output/
+
+# Coverage & cache
+coverage/
+.nyc_output/
+.cache/
+.parcel-cache/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Compiled binaries
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
