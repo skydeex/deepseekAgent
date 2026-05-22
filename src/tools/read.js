@@ -39,15 +39,19 @@ export const readTool = {
       }
     }
 
-    if (offset == null && limit == null) return text
-
     const lines = text.split("\n")
     const total = lines.length
-    const start = Math.max(0, (offset ?? 1) - 1)
-    const end   = limit != null ? Math.min(start + limit, total) : total
+    const start = offset != null ? Math.max(0, offset - 1) : 0
+    const end   = limit  != null ? Math.min(start + limit, total) : total
     const slice = lines.slice(start, end)
 
-    const header = `[Lines ${start + 1}–${end} of ${total}]\n`
-    return header + slice.join("\n")
+    const width = String(total).length
+    const numbered = slice.map((line, i) => {
+      const num = String(start + i + 1).padStart(width)
+      return `${num}→ ${line}`
+    })
+
+    const header = (offset != null || limit != null) ? `[Lines ${start + 1}–${end} of ${total}]\n` : ""
+    return header + numbered.join("\n")
   }
 }
