@@ -31,6 +31,7 @@ if (process.argv[2] === "update") {
 }
 import fs from "fs/promises"
 import path from "path"
+import { execSync, exec } from "child_process"
 import { agentLoop } from "./src/agent.js"
 import { loadConfig } from "./src/config.js"
 import { enableThinking } from "./src/thinking.js"
@@ -103,6 +104,41 @@ async function maybeInit() {
   console.log(c.dim(`[init] Created .agent/AGENT.md — edit it to add project instructions\n`))
 }
 
+const AGENT_DIR   = dirname(fileURLToPath(import.meta.url))
+const UPDATE_FLAG = path.join(AGENT_DIR, ".update-available")
+
+function startUpdateCheck() {
+  exec("git fetch --quiet", { cwd: AGENT_DIR, timeout: 8000 }, (err) => {
+    if (err) return
+    try {
+      const local  = execSync("git rev-parse HEAD",             { cwd: AGENT_DIR }).toString().trim()
+      const remote = execSync("git rev-parse @{u}",             { cwd: AGENT_DIR }).toString().trim()
+      if (local === remote) { fs.unlink(UPDATE_FLAG).catch(() => {}); return }
+      const count  = execSync("git rev-list HEAD..@{u} --count", { cwd: AGENT_DIR }).toString().trim()
+      fs.writeFile(UPDATE_FLAG, count, "utf-8").catch(() => {})
+    } catch {}
+  })
+}
+
+async function offerUpdate() {
+  let count
+  try { count = (await fs.readFile(UPDATE_FLAG, "utf-8")).trim() } catch { return }
+
+  process.stdout.write(c.yellow(`\n[update] Доступно обновление (+${count} коммит(ов)). Обновить? [Enter] да  [Esc] нет  `))
+  const answer = await askKey("")
+  console.log()
+  if (answer === "\x1b") return
+
+  const run = cmd => execSync(cmd, { cwd: AGENT_DIR, stdio: "inherit" })
+  run("git stash")
+  run("git pull")
+  run("git stash pop")
+  run("npm install --silent")
+  await fs.unlink(UPDATE_FLAG).catch(() => {})
+  console.log(c.green("[update] Готово. Перезапустите агент.\n"))
+  process.exit(0)
+}
+
 async function main() {
   await loadConfig()
 
@@ -137,8 +173,10 @@ async function main() {
     return
   }
 
+  startUpdateCheck()
   printBanner()
   await maybeInit()
+  await offerUpdate()
 
   while (true) {
     const input = await askWithComplete(c.bold("You: "), SLASH_COMMANDS)
