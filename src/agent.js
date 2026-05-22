@@ -123,10 +123,7 @@ function formatToolResult(name, args, result) {
   // write_file и edit_file уже вывели diff сами — ничего не добавляем
   if (name === "write_file" || name === "edit_file") return null
 
-  if (name === "read_file") {
-    const lines = result.split("\n").length
-    return `${lines} строк, ${result.length} символов`
-  }
+  if (name === "read_file") return null
 
   if (name === "glob") {
     const files = result.split("\n").filter(Boolean)
@@ -144,10 +141,7 @@ function formatToolResult(name, args, result) {
     return `${count} символов`
   }
 
-  if (name === "code_definition" || name === "code_context") {
-    const lines = result.split("\n").length
-    return `${lines} строк`
-  }
+  if (name === "code_definition" || name === "code_context") return null
 
   if (name === "web_search") {
     return result.slice(0, 120) + (result.length > 120 ? "…" : "")
