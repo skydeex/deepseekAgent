@@ -7,6 +7,7 @@ import path from "path"
 import { outline, definition, codeContext } from "../optimizer.js"
 import { getParser } from "../parsers/index.js"
 import { tryGenerateParser } from "../parsers/generator.js"
+import { adjust, reset } from "../line_tracker.js"
 
 // Возвращает parser-объект или null.
 // Если парсер не зарегистрирован — предлагает сгенерировать.
@@ -40,6 +41,8 @@ export const codeOutlineTool = {
     }
     const results = await outline(filePath)
     if (!results || results.length === 0) return "No functions/methods found."
+    // Сброс трекера: LLM получает свежие номера строк, старые сдвиги больше не актуальны
+    reset(filePath)
     return results.map(r => `${r.name.padEnd(40)} line ${r.line}`).join("\n")
   }
 }
@@ -97,7 +100,9 @@ export const codeContextTool = {
   },
   isReadOnly: true,
   async execute({ path: filePath, line, radius = 10 }) {
-    const result = await codeContext(filePath, line, radius)
-    return `=== ${filePath} lines ${result.from}-${result.to} ===\n${result.content}`
+    const actualLine = adjust(filePath, line)
+    const result = await codeContext(filePath, actualLine, radius)
+    const note = actualLine !== line ? ` (adjusted from ${line})` : ""
+    return `=== ${filePath} lines ${result.from}-${result.to}${note} ===\n${result.content}`
   }
 }

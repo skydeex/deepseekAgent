@@ -1,6 +1,7 @@
 import fs from "fs/promises"
 import path from "path"
 import { renderWriteDiff } from "../diff.js"
+import { reset } from "../line_tracker.js"
 
 export const writeTool = {
   name: "write_file",
@@ -21,6 +22,7 @@ export const writeTool = {
     await fs.mkdir(path.dirname(filePath), { recursive: true })
     await fs.writeFile(filePath, content, "utf-8")
 
+    reset(filePath)
     process.stdout.write(renderWriteDiff(original, content, filePath))
     return `Written to ${filePath}`
   }

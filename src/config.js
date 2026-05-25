@@ -12,7 +12,7 @@ const DEFAULTS = {
   dangerouslyDisableSandbox: false,
   mcpServers: {},
   language: null,
-  optimizer: false,
+  optimizer: true,
   generateParser: "ask"        // "ask" | "always" | "never"
 }
 
