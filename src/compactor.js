@@ -1,34 +1,13 @@
 import { getConfig } from "./config.js"
 import { runHooks } from "./hooks.js"
 import { c } from "./ui.js"
-
-// Оценка токенов: ~3 символа = 1 токен для текста; base64 изображений считаем по размеру
-function estimateTokens(messages) {
-  let chars = 0
-  for (const m of messages) {
-    if (typeof m.content === "string") {
-      chars += m.content.length
-    } else if (Array.isArray(m.content)) {
-      for (const b of m.content) {
-        if (b.type === "image_url") {
-          // base64 url: ~1 токен на 4 символа base64 (уже кодировано)
-          chars += (b.image_url?.url?.length ?? 0)
-        } else {
-          chars += (b.text ?? "").length
-        }
-      }
-    }
-    // служебные поля (role, tool_call_id и т.д.) — +20 токенов на сообщение
-    chars += 60
-  }
-  return Math.ceil(chars / 3)
-}
+import { estimateTokens } from "./tokens.js"
 
 export async function compactIfNeeded(messages, client, force = false) {
   const { contextLimit } = getConfig()
   const tokens = estimateTokens(messages)
 
-  if (!force && tokens < contextLimit * 0.8) return messages
+  if (!force && tokens < contextLimit * 0.9) return messages
 
   process.stdout.write(c.dim(`\n[compactor] Context ~${tokens} tokens, compacting...\n`))
 

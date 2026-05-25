@@ -8,6 +8,7 @@ import {
   getTurnCount, setTurnCount, loadSessions
 } from "./session.js"
 import { compactIfNeeded } from "./compactor.js"
+import { estimateTokens } from "./tokens.js"
 import { getConfig } from "./config.js"
 import { getModel } from "./thinking.js"
 import { c, waitForInput } from "./ui.js"
@@ -24,14 +25,6 @@ function getClient() {
   })
 }
 
-// Грубая оценка токенов
-function estimateTokens(messages) {
-  const text = messages.map(m =>
-    typeof m.content === "string" ? m.content :
-    Array.isArray(m.content) ? m.content.map(b => b.text ?? "").join("") : ""
-  ).join("")
-  return Math.ceil(text.length / 4)
-}
 
 // ─────────────────────────────────────────────
 // /clear — сбросить контекст
