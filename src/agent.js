@@ -102,7 +102,7 @@ async function executeTool(name, args) {
 
 function formatToolCall(name, args) {
   switch (name) {
-    case "read_file":    return `Read ${args.path}`
+    case "read_file":    return `Read ${args.path}${args.offset ? ` (lines ${args.offset}–${args.offset + (args.limit ?? 200) - 1})` : ""}`
     case "write_file":   return `Write ${args.path}`
     case "edit_file":    return `Edit ${args.path}`
     case "bash":         return `Bash ${(args.command ?? "").slice(0, 72)}`
