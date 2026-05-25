@@ -19,6 +19,7 @@ export function askWithComplete(prompt, commands) {
     let historyIdx = -1
     let suggestionsShown = 0  // сколько строк подсказок сейчас на экране
     let selectedIdx = -1      // выбранная подсказка (-1 = нет)
+    let pasting = false       // bracketed paste mode: идёт вставка
 
     // Видимая длина промпта (без ANSI-кодов)
     const promptLen = prompt.replace(/\x1b\[[0-9;]*m/g, '').length
@@ -39,6 +40,8 @@ export function askWithComplete(prompt, commands) {
     }
 
     process.stdin.resume()
+    // Включить bracketed paste mode: терминал оборачивает вставку в \x1b[200~ ... \x1b[201~
+    process.stdout.write('\x1b[?2004h')
     process.stdout.write(prompt)
 
     // Команды, начинающиеся с текущего буфера
@@ -99,6 +102,7 @@ export function askWithComplete(prompt, commands) {
 
     function finish(result) {
       clearSugs()
+      process.stdout.write('\x1b[?2004l')  // выключить bracketed paste mode
       process.stdout.write('\n')
       process.stdin.setRawMode(false)
       process.stdin.removeListener('keypress', onKeypress)
@@ -109,6 +113,17 @@ export function askWithComplete(prompt, commands) {
 
     function onKeypress(str, key) {
       if (!key) return
+
+      // Bracketed paste: начало вставки
+      if (key.sequence === '\x1b[200~') { pasting = true; return }
+      // Bracketed paste: конец вставки
+      if (key.sequence === '\x1b[201~') { pasting = false; redraw(); return }
+
+      // Во время вставки Enter добавляем как \n в буфер, а не отправляем
+      if (pasting && (key.name === 'return' || key.name === 'enter')) {
+        buffer += '\n'
+        return
+      }
 
       // Ctrl+C
       if (key.sequence === '\x03') {
