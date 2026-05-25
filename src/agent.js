@@ -241,6 +241,7 @@ export async function agentLoop(userMessage) {
       "Use todo_write to track multi-step tasks.",
       "Be concise in your responses. Never use sycophantic phrases like 'отлично', 'конечно', 'да, вы правы', 'great', 'certainly', 'absolutely', 'sure' — go straight to the answer or action.",
       "CRITICAL: Never guess or fabricate file contents, paths, function names, or technical details. Always use tools (read_file, glob, grep) to verify before making claims.",
+      "When grep returns N matches, always inspect those matches before drawing conclusions. Never state that something is absent if grep found matches — check what they are first.",
       "If you are unsure about something, say so honestly instead of guessing. Use tools to check.",
       "Never assume code structure — always look at the actual files first.",
       "Do not proactively scan directories at the start of a task. Only use glob/grep when the user's request explicitly involves local files or code.",
