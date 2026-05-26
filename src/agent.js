@@ -15,7 +15,7 @@ import { loadMcpTools } from "./mcp.js"
 import { checkPermission } from "./permissions.js"
 import { runHooks } from "./hooks.js"
 import { compactIfNeeded } from "./compactor.js"
-import { getModel, getThinkingParams, printReasoning } from "./thinking.js"
+import { getModel, getThinkingParams } from "./thinking.js"
 import { getConfig, saveConfig } from "./config.js"
 import { arm, disarm } from "./interrupt.js"
 import { isFileTool, cacheCheck, cacheSet } from "./file_cache.js"
@@ -298,6 +298,7 @@ export async function agentLoop(userMessage) {
       }
 
       let fullContent = ""
+      let fullReasoning = ""
       let toolCalls = []
       let finishReason = null
       let hasReasoning = false
@@ -310,8 +311,11 @@ export async function agentLoop(userMessage) {
           const delta = chunk.choices[0]?.delta
           finishReason = chunk.choices[0]?.finish_reason ?? finishReason
 
-          if (printReasoning(chunk)) {
+          const reasoningDelta = chunk.choices[0]?.delta?.reasoning_content
+          if (reasoningDelta) {
             if (!hasReasoning) { print(c.dim("\n[thinking]\n")); hasReasoning = true }
+            process.stdout.write(c.dim(reasoningDelta))
+            fullReasoning += reasoningDelta
             continue
           }
 
@@ -355,6 +359,7 @@ export async function agentLoop(userMessage) {
       pushMessage({
         role: "assistant",
         content: fullContent || null,
+        ...(fullReasoning ? { reasoning_content: fullReasoning } : {}),
         tool_calls: toolCalls.length ? toolCalls : undefined
       })
 
