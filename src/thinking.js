@@ -4,14 +4,19 @@ import { c } from "./ui.js"
 let _thinkingEnabled = false
 
 export function enableThinking() { _thinkingEnabled = true }
+export function disableThinking() { _thinkingEnabled = false }
 export function isThinkingEnabled() { return _thinkingEnabled }
 
 export function getModel() {
-  const { model, thinkingModel } = getConfig()
-  return _thinkingEnabled ? thinkingModel : model
+  return getConfig().model
 }
 
-// deepseek-reasoner возвращает reasoning_content отдельно от content
+export function getThinkingParams() {
+  if (!_thinkingEnabled) return {}
+  return { thinking: { type: "enabled" } }
+}
+
+// DeepSeek возвращает reasoning_content отдельно от content
 // Эта функция печатает его в dim-стиле
 export function printReasoning(chunk) {
   const delta = chunk.choices[0]?.delta

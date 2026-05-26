@@ -10,9 +10,9 @@ import {
 import { compactIfNeeded } from "./compactor.js"
 import { estimateTokens } from "./tokens.js"
 import { getConfig } from "./config.js"
-import { getModel } from "./thinking.js"
+import { getModel, enableThinking, disableThinking, isThinkingEnabled } from "./thinking.js"
 import { c, waitForInput } from "./ui.js"
-import { askKey } from "./rl.js"
+import { askKey, ask } from "./rl.js"
 import { print } from "./output.js"
 import { saveConfig } from "./config.js"
 
@@ -555,15 +555,55 @@ export function cmdCreative() {
 }
 
 // ─────────────────────────────────────────────
-// /model — информация о доступных моделях
+// /model — выбор модели
 // ─────────────────────────────────────────────
-export function cmdModel() {
-  const { model, thinkingModel } = getConfig()
-  print(c.bold("\nAvailable models:\n"))
-  print(`  ${c.green("deepseek-chat")}     — fast, cheap, general purpose ${model === "deepseek-chat" ? c.dim("(current)") : ""}\n`)
-  print(`  ${c.cyan("deepseek-reasoner")} — extended thinking, complex tasks ${model === thinkingModel ? c.dim("(current)") : ""}\n`)
-  print(c.dim("\nTo switch: edit .agent/settings.json → \"model\"\n"))
-  print(c.dim("Or run with --think flag to use deepseek-reasoner for the session.\n\n"))
+const MODEL_LIST = [
+  { id: "deepseek-v4-flash", label: "быстрая, дешёвая",              think: false },
+  { id: "deepseek-v4-flash", label: "быстрая + reasoning",            think: true  },
+  { id: "deepseek-v4-pro",   label: "мощная",                        think: false },
+  { id: "deepseek-v4-pro",   label: "мощная + reasoning",            think: true  },
+]
+
+async function applyModelChoice(config, entry) {
+  config.model = entry.id
+  if (entry.think) enableThinking(); else disableThinking()
+  await saveConfig()
+  const thinkSuffix = entry.think ? c.dim(" + thinking") : ""
+  print(c.bold(`\n[model] Установлена: ${c.cyan(entry.id)}${thinkSuffix}\n\n`))
+}
+
+export async function cmdModel(args) {
+  const config = getConfig()
+  const current = config.model
+  const thinking = isThinkingEnabled()
+
+  if (args) {
+    const a = args.trim().toLowerCase()
+    const byNum = MODEL_LIST[parseInt(a) - 1]
+    const entry = byNum
+    if (entry) { await applyModelChoice(config, entry); return }
+    print(c.yellow(`[model] Используй номер 1-4 или /model без аргументов для списка\n\n`))
+    return
+  }
+
+  print(c.bold("\n[model] Выбор модели\n\n"))
+  MODEL_LIST.forEach((m, i) => {
+    const isCurrent = m.id === current && m.think === thinking
+    const marker = isCurrent ? c.green(" ← текущая") : ""
+    const thinkTag = m.think ? c.cyan(" [think]") : "        "
+    print(`  ${c.bold(String(i + 1))}. ${c.cyan(m.id.padEnd(20))}${thinkTag}  ${c.dim(m.label)}${marker}\n`)
+  })
+  print("\n")
+
+  const answer = (await ask(c.dim("  Выбор [1-4] или Enter для отмены: "))).trim()
+  if (!answer) { print(c.dim("  Отменено.\n\n")); return }
+
+  const idx = parseInt(answer) - 1
+  if (isNaN(idx) || idx < 0 || idx >= MODEL_LIST.length) {
+    print(c.yellow("  Неверный выбор.\n\n"))
+    return
+  }
+  await applyModelChoice(config, MODEL_LIST[idx])
 }
 
 // ─────────────────────────────────────────────
@@ -596,7 +636,7 @@ export async function handleCommand(input) {
     case "proactive":    await cmdLoop(args); return true
     case "lang":
     case "language":     await cmdLang(args); return true
-    case "model":        cmdModel(); return true
+    case "model":        await cmdModel(args); return true
     case "creative":     cmdCreative(); return true
     case "optimizer":    await cmdOptimizer(); return true
     case "parser":       await cmdParser(args); return true

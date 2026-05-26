@@ -3,12 +3,14 @@ import readline from "readline"
 export const rl = readline.createInterface({ input: process.stdin, output: process.stdout, historySize: 200 })
 
 export function ask(prompt) {
+  if (rl.closed) return Promise.resolve("")
   return new Promise(resolve => rl.question(prompt, resolve))
 }
 
 // Ввод с автодополнением /команд по стрелке вниз / Tab.
 // commands: массив [cmd, desc] из SLASH_COMMANDS
 export function askWithComplete(prompt, commands) {
+  if (rl.closed) return Promise.resolve("")
   // Git Bash на Windows не выставляет isTTY, но setRawMode есть — проверяем по нему
   if (typeof process.stdin.setRawMode !== 'function') {
     return new Promise(resolve => rl.question(prompt, resolve))
@@ -25,7 +27,7 @@ export function askWithComplete(prompt, commands) {
     const promptLen = prompt.replace(/\x1b\[[0-9;]*m/g, '').length
 
     readline.emitKeypressEvents(process.stdin)
-    rl.pause()
+    try { rl.pause() } catch { resolve(""); return }
     const origWriteToOutput = rl._writeToOutput
     rl._writeToOutput = () => {}
 
@@ -252,7 +254,7 @@ export function askKey(prompt) {
 
     process.stdout.write(prompt)
     readline.emitKeypressEvents(process.stdin)
-    rl.pause()
+    try { rl.pause() } catch { resolve(""); return }
     // Suppress readline's own echo during raw mode to avoid duplicate output
     const origWriteToOutput = rl._writeToOutput
     rl._writeToOutput = () => {}

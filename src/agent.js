@@ -15,7 +15,7 @@ import { loadMcpTools } from "./mcp.js"
 import { checkPermission } from "./permissions.js"
 import { runHooks } from "./hooks.js"
 import { compactIfNeeded } from "./compactor.js"
-import { getModel, printReasoning } from "./thinking.js"
+import { getModel, getThinkingParams, printReasoning } from "./thinking.js"
 import { getConfig, saveConfig } from "./config.js"
 import { arm, disarm } from "./interrupt.js"
 import { isFileTool, cacheCheck, cacheSet } from "./file_cache.js"
@@ -289,7 +289,8 @@ export async function agentLoop(userMessage) {
           tools: buildOpenAITools(),
           temperature: getConfig().temperature ?? 0,
           stream: true,
-          signal
+          signal,
+          ...getThinkingParams()
         })
       } catch (err) {
         if (signal.aborted || err.name === 'AbortError') break

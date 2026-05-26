@@ -2,8 +2,7 @@ import fs from "fs/promises"
 import path from "path"
 
 const DEFAULTS = {
-  model: "deepseek-chat",
-  thinkingModel: "deepseek-reasoner",
+  model: "deepseek-v4-flash",
   contextLimit: 100000,
   temperature: 0,
   alwaysAllow: ["read_file", "glob", "grep", "todo_read", "generate_parser"],

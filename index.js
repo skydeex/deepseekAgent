@@ -69,6 +69,7 @@ process.on("SIGINT", () => {
     process.stdout.write(c.yellow(" [Ctrl+C]\n"))
     interrupt()
   } else {
+    if (!rl.closed) rl.close()
     shutdown()
   }
 })
@@ -182,6 +183,7 @@ async function main() {
 
   while (true) {
     const input = await askWithComplete(c.bold("You: "), SLASH_COMMANDS)
+    if (rl.closed) break
     const trimmed = input.trim()
     if (!trimmed || trimmed === "exit" || trimmed === "/exit" || trimmed === "/quit") break
 
