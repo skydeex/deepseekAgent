@@ -15,8 +15,9 @@ const SANDBOX_BLOCKED = [
 ]
 
 // Установщики ПО — спрашиваем пользователя перед запуском
+// ВАЖНО: паттерны должны совпадать только с командами, но не с путями (напр. C:\Users\...\scoop\...)
 const INSTALLER_PATTERNS = [
-  /\bwinget\b/, /\bchoco\b/, /\bscoop\b/, /\bmsiexec\b/,
+  /\bwinget\s+install\b/, /\bchoco\s+install\b/, /\bscoop\s+install\b/, /\bmsiexec\b/,
   /\bapt(?:-get)?\s+install\b/, /\bbrew\s+install\b/,
   /\bpip\s+install\b/, /\bnpm\s+install\s+-g\b/, /\byarn\s+global\s+add\b/
 ]
@@ -81,10 +82,7 @@ export const bashTool = {
     }
 
     const LIMIT = 8000
-    // На Windows переключаем консоль в UTF-8 перед командой
-    const cmd = process.platform === "win32"
-      ? `chcp 65001 >nul 2>&1 & ${command}`
-      : command
+    const cmd = command
     if (isInstaller(command)) {
       const allowed = await confirmInstall(command)
       if (!allowed) return `Установка отклонена пользователем. Сообщи об этом и спроси что делать дальше.`

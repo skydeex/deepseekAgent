@@ -7,6 +7,11 @@ import { dirname, join } from "path"
 if (process.stdout.isTTY) process.stdout.setDefaultEncoding("utf8")
 if (process.stderr.isTTY) process.stderr.setDefaultEncoding("utf8")
 
+// Устанавливаем UTF-8 кодировку консоли один раз при старте (Windows)
+if (process.platform === "win32") {
+  try { require("child_process").execSync("chcp 65001", { stdio: "ignore" }) } catch {}
+}
+
 // Грузим .env из директории самого агента, а не из cwd
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
@@ -60,6 +65,9 @@ async function shutdown() {
   await saveSession()
   if (isInWorktree()) await removeWorktree()
   await disconnectMcp()
+  // Сбрасываем состояние терминала: bracketed paste, цвета, raw mode
+  process.stdout.write('\x1b[?2004l\x1b[0m')
+  if (process.stdin.isTTY) { try { process.stdin.setRawMode(false) } catch {} }
   console.log(c.dim("\nBye."))
   process.exit(0)
 }
@@ -138,6 +146,8 @@ async function offerUpdate() {
   run("npm install --silent")
   await fs.unlink(UPDATE_FLAG).catch(() => {})
   console.log(c.green("[update] Готово. Перезапустите агент.\n"))
+  process.stdout.write('\x1b[?2004l\x1b[0m')
+  if (process.stdin.isTTY) { try { process.stdin.setRawMode(false) } catch {} }
   process.exit(0)
 }
 

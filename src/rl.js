@@ -81,12 +81,10 @@ export function askWithComplete(prompt, commands) {
           readline.clearLine(process.stdout, 0)
         }
         readline.moveCursor(process.stdout, 0, -suggestionsShown)
+        readline.cursorTo(process.stdout, promptLen + buffer.length)
         suggestionsShown = 0
       }
-      if (sugs.length === 0) {
-        readline.cursorTo(process.stdout, promptLen + buffer.length)
-        return
-      }
+      if (sugs.length === 0) return
       for (let i = 0; i < sugs.length; i++) {
         const [cmd, desc] = sugs[i]
         const name = cmd.split(' ')[0]
@@ -130,6 +128,7 @@ export function askWithComplete(prompt, commands) {
       // Ctrl+C
       if (key.sequence === '\x03') {
         clearSugs()
+        process.stdout.write('\x1b[?2004l')  // выключить bracketed paste mode
         process.stdout.write('^C\n')
         process.stdin.setRawMode(false)
         process.stdin.removeListener('keypress', onKeypress)
