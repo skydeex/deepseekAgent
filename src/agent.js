@@ -15,7 +15,7 @@ import { loadMcpTools } from "./mcp.js"
 import { checkPermission } from "./permissions.js"
 import { runHooks } from "./hooks.js"
 import { compactIfNeeded } from "./compactor.js"
-import { getModel, getThinkingParams } from "./thinking.js"
+import { getModel, getThinkingParams, isThinkingEnabled } from "./thinking.js"
 import { getConfig, saveConfig } from "./config.js"
 import { arm, disarm } from "./interrupt.js"
 import { isFileTool, cacheCheck, cacheSet } from "./file_cache.js"
@@ -286,11 +286,12 @@ export async function agentLoop(userMessage) {
       messages = await compactIfNeeded(messages, getClient())
       setMessages(messages)
 
-      // Strip reasoning_content before sending — it's an output-only field;
-      // sending it back causes DeepSeek to mishandle tool_calls in history.
-      const apiMessages = messages.map(m =>
-        m.reasoning_content ? { ...m, reasoning_content: undefined } : m
-      )
+      // Strip reasoning_content when NOT in thinking mode — it's an output-only field
+      // that causes DeepSeek to mishandle tool_calls in regular (non-reasoning) mode.
+      // In thinking mode it MUST be passed back, so we leave it intact.
+      const apiMessages = isThinkingEnabled()
+        ? messages
+        : messages.map(m => m.reasoning_content ? { ...m, reasoning_content: undefined } : m)
 
       let stream
       try {
