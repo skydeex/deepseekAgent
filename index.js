@@ -39,7 +39,7 @@ import path from "path"
 import { execSync, exec } from "child_process"
 import { agentLoop } from "./src/agent.js"
 import { loadConfig } from "./src/config.js"
-import { enableThinking } from "./src/thinking.js"
+import { enableThinking, getModel, isThinkingEnabled } from "./src/thinking.js"
 import { createWorktree, removeWorktree, isInWorktree } from "./src/worktree.js"
 import { disconnectMcp } from "./src/mcp.js"
 import { printBanner, c } from "./src/ui.js"
@@ -156,7 +156,6 @@ async function main() {
 
   if (useThinking) {
     enableThinking()
-    console.log(c.dim("[mode] Extended thinking (deepseek-reasoner)"))
   }
 
   if (useWorktree) {
@@ -187,6 +186,8 @@ async function main() {
 
   startUpdateCheck()
   printBanner()
+  const thinkTag = isThinkingEnabled() ? c.cyan(" + thinking") : ""
+  console.log(c.dim(`[model] ${getModel()}${thinkTag}\n`))
   await maybeInit()
   await initIgnore()
   await offerUpdate()
