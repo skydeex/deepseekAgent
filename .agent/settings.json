@@ -13,7 +13,6 @@
   "disallowedTools": [],
   "dangerouslyDisableSandbox": false,
   "mcpServers": {},
-  "language": "Russian",
   "optimizer": true,
   "generateParser": "ask"
 }
