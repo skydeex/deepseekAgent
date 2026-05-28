@@ -39,7 +39,7 @@ import path from "path"
 import { execSync, exec } from "child_process"
 import { agentLoop } from "./src/agent.js"
 import { loadConfig } from "./src/config.js"
-import { enableThinking, getModel, isThinkingEnabled } from "./src/thinking.js"
+import { enableThinking, setThinkingMode, getModel, isThinkingEnabled, getThinkingMode } from "./src/thinking.js"
 import { createWorktree, removeWorktree, isInWorktree } from "./src/worktree.js"
 import { disconnectMcp } from "./src/mcp.js"
 import { printBanner, c } from "./src/ui.js"
@@ -152,11 +152,11 @@ async function offerUpdate() {
 }
 
 async function main() {
-  await loadConfig()
+  const cfg = await loadConfig()
 
-  if (useThinking) {
-    enableThinking()
-  }
+  // Восстановить thinking mode из сохранённого конфига, затем --think перекрывает
+  if (cfg.thinkingMode) setThinkingMode(cfg.thinkingMode)
+  if (useThinking) enableThinking()
 
   if (useWorktree) {
     try {
@@ -186,7 +186,8 @@ async function main() {
 
   startUpdateCheck()
   printBanner()
-  const thinkTag = isThinkingEnabled() ? c.cyan(" + thinking") : ""
+  const thinkMode = getThinkingMode()
+  const thinkTag = thinkMode === "none" ? "" : c.cyan(` + think ${thinkMode}`)
   console.log(c.dim(`[model] ${getModel()}${thinkTag}\n`))
   await maybeInit()
   await initIgnore()

@@ -10,7 +10,7 @@ import {
 import { compactIfNeeded } from "./compactor.js"
 import { estimateTokens } from "./tokens.js"
 import { getConfig } from "./config.js"
-import { getModel, enableThinking, disableThinking, isThinkingEnabled } from "./thinking.js"
+import { getModel, setThinkingMode, getThinkingMode, isThinkingEnabled } from "./thinking.js"
 import { c, waitForInput } from "./ui.js"
 import { askKey, ask } from "./rl.js"
 import { print } from "./output.js"
@@ -558,44 +558,47 @@ export function cmdCreative() {
 // /model — выбор модели
 // ─────────────────────────────────────────────
 const MODEL_LIST = [
-  { id: "deepseek-v4-flash", label: "быстрая, дешёвая",              think: false },
-  { id: "deepseek-v4-flash", label: "быстрая + reasoning",            think: true  },
-  { id: "deepseek-v4-pro",   label: "мощная",                        think: false },
-  { id: "deepseek-v4-pro",   label: "мощная + reasoning",            think: true  },
+  { id: "deepseek-v4-flash", think: "none", label: "без рассуждений"      },
+  { id: "deepseek-v4-flash", think: "high", label: "думает (обычно)"      },
+  { id: "deepseek-v4-flash", think: "max",  label: "думает (глубоко)"     },
+  { id: "deepseek-v4-pro",   think: "none", label: "без рассуждений"      },
+  { id: "deepseek-v4-pro",   think: "high", label: "думает (обычно)"      },
+  { id: "deepseek-v4-pro",   think: "max",  label: "думает (глубоко)"     },
 ]
 
 async function applyModelChoice(config, entry) {
   config.model = entry.id
-  if (entry.think) enableThinking(); else disableThinking()
+  config.thinkingMode = entry.think
+  setThinkingMode(entry.think)
   await saveConfig()
-  const thinkSuffix = entry.think ? c.dim(" + thinking") : ""
-  print(c.bold(`\n[model] Установлена: ${c.cyan(entry.id)}${thinkSuffix}\n\n`))
+  const thinkLabel = entry.think === "none" ? "" : c.cyan(` + think ${entry.think}`)
+  print(c.bold(`\n[model] Установлена: ${c.cyan(entry.id)}${thinkLabel}\n\n`))
 }
 
 export async function cmdModel(args) {
   const config = getConfig()
   const current = config.model
-  const thinking = isThinkingEnabled()
+  const currentThink = getThinkingMode()
 
   if (args) {
-    const a = args.trim().toLowerCase()
-    const byNum = MODEL_LIST[parseInt(a) - 1]
-    const entry = byNum
-    if (entry) { await applyModelChoice(config, entry); return }
-    print(c.yellow(`[model] Используй номер 1-4 или /model без аргументов для списка\n\n`))
+    const idx = parseInt(args.trim()) - 1
+    if (!isNaN(idx) && idx >= 0 && idx < MODEL_LIST.length) {
+      await applyModelChoice(config, MODEL_LIST[idx]); return
+    }
+    print(c.yellow(`[model] Используй номер 1-${MODEL_LIST.length} или /model без аргументов для списка\n\n`))
     return
   }
 
   print(c.bold("\n[model] Выбор модели\n\n"))
   MODEL_LIST.forEach((m, i) => {
-    const isCurrent = m.id === current && m.think === thinking
+    const isCurrent = m.id === current && m.think === currentThink
     const marker = isCurrent ? c.green(" ← текущая") : ""
-    const thinkTag = m.think ? c.cyan(" [think]") : "        "
-    print(`  ${c.bold(String(i + 1))}. ${c.cyan(m.id.padEnd(20))}${thinkTag}  ${c.dim(m.label)}${marker}\n`)
+    const shortId = m.id.replace("deepseek-v4-", "")  // "flash" / "pro"
+    print(`  ${c.bold(String(i + 1))}. ${c.cyan(shortId.padEnd(6))}  ${c.dim(m.label)}${marker}\n`)
   })
   print("\n")
 
-  const answer = (await ask(c.dim("  Выбор [1-4] или Enter для отмены: "))).trim()
+  const answer = (await ask(c.dim(`  Выбор [1-${MODEL_LIST.length}] или Enter для отмены: `))).trim()
   if (!answer) { print(c.dim("  Отменено.\n\n")); return }
 
   const idx = parseInt(answer) - 1
