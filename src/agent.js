@@ -184,9 +184,14 @@ function repairOrphanedToolCalls(messages) {
     const msg = messages[i]
     result.push(msg)
     if (msg.role === "assistant" && msg.tool_calls?.length) {
+      // Push all consecutive tool messages immediately (advancing i),
+      // then append placeholders for missing ones AFTER existing responses.
+      // This preserves order and prevents orphaned tool messages.
       const answered = new Set()
-      for (let j = i + 1; j < messages.length && messages[j].role === "tool"; j++) {
-        answered.add(messages[j].tool_call_id)
+      while (i + 1 < messages.length && messages[i + 1].role === "tool") {
+        i++
+        result.push(messages[i])
+        answered.add(messages[i].tool_call_id)
       }
       for (const tc of msg.tool_calls) {
         if (!answered.has(tc.id)) {
@@ -281,11 +286,17 @@ export async function agentLoop(userMessage) {
       messages = await compactIfNeeded(messages, getClient())
       setMessages(messages)
 
+      // Strip reasoning_content before sending — it's an output-only field;
+      // sending it back causes DeepSeek to mishandle tool_calls in history.
+      const apiMessages = messages.map(m =>
+        m.reasoning_content ? { ...m, reasoning_content: undefined } : m
+      )
+
       let stream
       try {
         stream = await getClient().chat.completions.create({
           model: getModel(),
-          messages,
+          messages: apiMessages,
           tools: buildOpenAITools(),
           temperature: getConfig().temperature ?? 0,
           stream: true,
