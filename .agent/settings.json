@@ -1,7 +1,19 @@
 {
-  "alwaysAllow": ["read_file", "glob", "grep", "todo_read", "generate_parser"],
+  "model": "deepseek-v4-flash",
+  "contextLimit": 100000,
+  "temperature": 0,
+  "alwaysAllow": [
+    "read_file",
+    "glob",
+    "grep",
+    "todo_read",
+    "generate_parser"
+  ],
   "neverAllow": [],
   "disallowedTools": [],
   "dangerouslyDisableSandbox": false,
-  "mcpServers": {}
+  "mcpServers": {},
+  "language": "Russian",
+  "optimizer": true,
+  "generateParser": "ask"
 }
