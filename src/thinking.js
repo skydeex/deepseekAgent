@@ -16,5 +16,7 @@ export function getModel() {
 }
 
 export function getThinkingParams() {
-  return { thinking: _thinkingMode }
+  if (_thinkingMode === "none") return { thinking: { type: "disabled" } }
+  if (_thinkingMode === "max")  return { thinking: { type: "enabled", budget_tokens: 16000 } }
+  return { thinking: { type: "enabled" } }  // high — дефолт
 }
