@@ -18,6 +18,7 @@ export function askWithComplete(prompt, commands) {
 
   return new Promise((resolve) => {
     let buffer = ''
+    let cursorPos = 0         // позиция курсора внутри buffer
     let historyIdx = -1
     let suggestionsShown = 0  // сколько строк подсказок сейчас на экране
     let selectedIdx = -1      // выбранная подсказка (-1 = нет)
@@ -53,14 +54,15 @@ export function askWithComplete(prompt, commands) {
       return commands.filter(([cmd]) => cmd.split(' ')[0].toLowerCase().startsWith(q)).slice(0, 7)
     }
 
-    // Перерисовать строку ввода
+    // Перерисовать строку ввода и поставить курсор на cursorPos
     function redraw() {
       readline.cursorTo(process.stdout, 0)
       readline.clearLine(process.stdout, 0)
       process.stdout.write(prompt + buffer)
+      readline.cursorTo(process.stdout, promptLen + cursorPos)
     }
 
-    // Убрать строки подсказок, вернуть курсор в конец строки ввода
+    // Убрать строки подсказок, вернуть курсор на cursorPos
     function clearSugs() {
       if (suggestionsShown === 0) return
       for (let i = 0; i < suggestionsShown; i++) {
@@ -68,7 +70,7 @@ export function askWithComplete(prompt, commands) {
         readline.clearLine(process.stdout, 0)
       }
       readline.moveCursor(process.stdout, 0, -suggestionsShown)
-      readline.cursorTo(process.stdout, promptLen + buffer.length)
+      readline.cursorTo(process.stdout, promptLen + cursorPos)
       suggestionsShown = 0
     }
 
@@ -81,9 +83,10 @@ export function askWithComplete(prompt, commands) {
           readline.clearLine(process.stdout, 0)
         }
         readline.moveCursor(process.stdout, 0, -suggestionsShown)
-        readline.cursorTo(process.stdout, promptLen + buffer.length)
         suggestionsShown = 0
       }
+      // Вернуть курсор на cursorPos (не на конец буфера)
+      readline.cursorTo(process.stdout, promptLen + cursorPos)
       if (sugs.length === 0) return
       for (let i = 0; i < sugs.length; i++) {
         const [cmd, desc] = sugs[i]
@@ -96,7 +99,7 @@ export function askWithComplete(prompt, commands) {
         process.stdout.write(i === selectedIdx ? `\x1b[7m${text}\x1b[0m` : `\x1b[2m${text}\x1b[0m`)
       }
       readline.moveCursor(process.stdout, 0, -sugs.length)
-      readline.cursorTo(process.stdout, promptLen + buffer.length)
+      readline.cursorTo(process.stdout, promptLen + cursorPos)
       suggestionsShown = sugs.length
     }
 
@@ -144,6 +147,7 @@ export function askWithComplete(prompt, commands) {
           const sugs = match()
           if (sugs[selectedIdx]) {
             buffer = sugs[selectedIdx][0].split(' ')[0]
+            cursorPos = buffer.length
             redraw()
           }
         }
@@ -163,10 +167,43 @@ export function askWithComplete(prompt, commands) {
         const sugs = match()
         if (sugs.length > 0) {
           buffer = sugs[selectedIdx >= 0 ? selectedIdx : 0][0].split(' ')[0]
+          cursorPos = buffer.length
           selectedIdx = -1
           redraw()
           drawSugs(match())
         }
+        return
+      }
+
+      // Стрелка влево
+      if (key.name === 'left') {
+        if (cursorPos > 0) {
+          cursorPos--
+          readline.cursorTo(process.stdout, promptLen + cursorPos)
+        }
+        return
+      }
+
+      // Стрелка вправо
+      if (key.name === 'right') {
+        if (cursorPos < buffer.length) {
+          cursorPos++
+          readline.cursorTo(process.stdout, promptLen + cursorPos)
+        }
+        return
+      }
+
+      // Home / Ctrl+A
+      if (key.name === 'home' || (key.ctrl && key.name === 'a')) {
+        cursorPos = 0
+        readline.cursorTo(process.stdout, promptLen)
+        return
+      }
+
+      // End / Ctrl+E
+      if (key.name === 'end' || (key.ctrl && key.name === 'e')) {
+        cursorPos = buffer.length
+        readline.cursorTo(process.stdout, promptLen + cursorPos)
         return
       }
 
@@ -182,6 +219,7 @@ export function askWithComplete(prompt, commands) {
           historyIdx = Math.min(historyIdx + 1, rl.history.length - 1)
           if (historyIdx >= 0 && rl.history[historyIdx] !== undefined) {
             buffer = rl.history[historyIdx]
+            cursorPos = buffer.length
             clearSugs()
             redraw()
           }
@@ -205,16 +243,18 @@ export function askWithComplete(prompt, commands) {
             historyIdx = -1
             buffer = ''
           }
+          cursorPos = buffer.length
           clearSugs()
           redraw()
         }
         return
       }
 
-      // Backspace
+      // Backspace — удалить символ слева от курсора
       if (key.name === 'backspace') {
-        if (buffer.length > 0) {
-          buffer = buffer.slice(0, -1)
+        if (cursorPos > 0) {
+          buffer = buffer.slice(0, cursorPos - 1) + buffer.slice(cursorPos)
+          cursorPos--
           selectedIdx = -1
           redraw()
           drawSugs(match())
@@ -222,14 +262,26 @@ export function askWithComplete(prompt, commands) {
         return
       }
 
-      // Игнорировать управляющие комбинации
+      // Delete — удалить символ справа от курсора
+      if (key.name === 'delete') {
+        if (cursorPos < buffer.length) {
+          buffer = buffer.slice(0, cursorPos) + buffer.slice(cursorPos + 1)
+          selectedIdx = -1
+          redraw()
+          drawSugs(match())
+        }
+        return
+      }
+
+      // Игнорировать управляющие комбинации (кроме уже обработанных Ctrl+A/E)
       if (key.ctrl || key.meta) return
 
-      // Обычный символ
-      if (str) {
-        buffer += str
+      // Обычный символ — вставить в позицию курсора
+      if (str && str.length === 1 && str.charCodeAt(0) >= 32) {
+        buffer = buffer.slice(0, cursorPos) + str + buffer.slice(cursorPos)
+        cursorPos++
         selectedIdx = -1
-        process.stdout.write(str)
+        redraw()
         drawSugs(match())
       }
     }
