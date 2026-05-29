@@ -311,6 +311,8 @@ export async function agentLoop(userMessage) {
 
   const MAX_ITERATIONS = getConfig().maxIterations ?? 40
   let iterations = 0
+  let consecutiveToolErrors = 0
+  let tooManyToolErrors = false
 
   try {
     while (true) {
@@ -475,6 +477,19 @@ export async function agentLoop(userMessage) {
           const result = await executeTool(call.function.name, args)
 
           const full = String(result)
+
+          if (full.startsWith("Error:") || full.startsWith("Unknown tool:") || full.startsWith("Rejected:")) {
+            consecutiveToolErrors++
+          } else {
+            consecutiveToolErrors = 0
+          }
+
+          if (consecutiveToolErrors >= 3) {
+            print(c.yellow("\n[агент] 3 ошибки подряд — остановлен. Проверьте задачу.\n"))
+            tooManyToolErrors = true
+            break
+          }
+
           const CONTEXT_LIMIT = 12000
           const toolContent = full.length > CONTEXT_LIMIT
             ? full.slice(0, CONTEXT_LIMIT) + `\n[... truncated, ${full.length - CONTEXT_LIMIT} chars omitted]`
@@ -489,6 +504,7 @@ export async function agentLoop(userMessage) {
             await cacheSet(call.function.name, call.function.arguments, args.path, getMessages().length)
           }
         }
+        if (tooManyToolErrors) break
       }
     }
   } finally {
