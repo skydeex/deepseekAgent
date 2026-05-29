@@ -2,6 +2,7 @@ import { getConfig } from "./config.js"
 import { runHooks } from "./hooks.js"
 import { c } from "./ui.js"
 import { estimateTokens } from "./tokens.js"
+import { todoReadTool } from "./tools/todo.js"
 
 export async function compactIfNeeded(messages, client, force = false) {
   const { contextLimit } = getConfig()
@@ -21,6 +22,11 @@ export async function compactIfNeeded(messages, client, force = false) {
     .map(m => `[${m.role}]: ${typeof m.content === "string" ? m.content : JSON.stringify(m.content)}`)
     .join("\n")
 
+  const todoText = await todoReadTool.execute()
+  const todoBlock = todoText !== "No tasks."
+    ? `\nCurrent TODO list (MUST be included in carry_forward verbatim):\n${todoText}\n`
+    : ""
+
   try {
     const carryResponse = await client.chat.completions.create({
       model: getConfig().model,
@@ -38,7 +44,7 @@ export async function compactIfNeeded(messages, client, force = false) {
         },
         {
           role: "user",
-          content: historyText + "\n\nWrite the carry_forward briefing now."
+          content: historyText + todoBlock + "\n\nWrite the carry_forward briefing now."
         }
       ]
     })
