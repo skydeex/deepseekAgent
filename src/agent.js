@@ -26,6 +26,9 @@ import {
   createCheckpoint, incrementTurn
 } from "./session.js"
 
+const _modifiedFiles = new Set()
+export function getModifiedFiles() { return [..._modifiedFiles] }
+
 let client = null
 
 function getClient() {
@@ -482,6 +485,9 @@ export async function agentLoop(userMessage) {
             consecutiveToolErrors++
           } else {
             consecutiveToolErrors = 0
+            if ((call.function.name === "write_file" || call.function.name === "edit_file") && args.path) {
+              _modifiedFiles.add(args.path)
+            }
           }
 
           if (consecutiveToolErrors >= 3) {

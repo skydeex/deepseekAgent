@@ -3,6 +3,7 @@ import { runHooks } from "./hooks.js"
 import { c } from "./ui.js"
 import { estimateTokens } from "./tokens.js"
 import { todoReadTool } from "./tools/todo.js"
+import { getModifiedFiles } from "./agent.js"
 
 export async function compactIfNeeded(messages, client, force = false) {
   const { contextLimit } = getConfig()
@@ -27,6 +28,11 @@ export async function compactIfNeeded(messages, client, force = false) {
     ? `\nCurrent TODO list (MUST be included in carry_forward verbatim):\n${todoText}\n`
     : ""
 
+  const modifiedFiles = getModifiedFiles()
+  const modifiedBlock = modifiedFiles.length
+    ? `\nFiles modified this session (include in carry_forward):\n${modifiedFiles.map(f => `- ${f}`).join("\n")}\n`
+    : ""
+
   try {
     const carryResponse = await client.chat.completions.create({
       model: getConfig().model,
@@ -44,7 +50,7 @@ export async function compactIfNeeded(messages, client, force = false) {
         },
         {
           role: "user",
-          content: historyText + todoBlock + "\n\nWrite the carry_forward briefing now."
+          content: historyText + todoBlock + modifiedBlock + "\n\nWrite the carry_forward briefing now."
         }
       ]
     })
