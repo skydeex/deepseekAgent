@@ -27,6 +27,12 @@ function getFilePath(toolName, args) {
   return null
 }
 
+function isInsideCwd(filePath) {
+  const abs = path.resolve(filePath)
+  const cwd = process.cwd()
+  return abs === cwd || abs.startsWith(cwd + path.sep)
+}
+
 function isDirApproved(filePath) {
   ensureDirsLoaded()
   const dir = path.resolve(path.dirname(filePath))
@@ -71,6 +77,10 @@ export async function checkPermission(toolName, args) {
 
   const filePath = getFilePath(toolName, args)
 
+  if (filePath && isInsideCwd(filePath)) {
+    return { allowed: true }
+  }
+
   if (filePath && isDirApproved(filePath)) {
     return { allowed: true }
   }
@@ -80,11 +90,11 @@ export async function checkPermission(toolName, args) {
     const dir = path.dirname(path.resolve(filePath))
     prompt =
       c.yellow(`\n┌ [?] ${toolName} → ${filePath}\n`) +
-      c.yellow(`└ `) + c.dim(`[Enter] один раз  [d] запомнить папку "${dir}"  [Esc] отклонить: `)
+      c.yellow(`└ `) + c.dim(`[Enter] один раз  [s] папку на сессию  [d] папку навсегда  [Esc] отклонить: `)
   } else {
     prompt =
       c.yellow(`\n┌ [?] ${toolName}: ${JSON.stringify(args)}\n`) +
-      c.yellow(`└ `) + c.dim(`[Enter] один раз  [a] запомнить для этого проекта  [Esc] отклонить: `)
+      c.yellow(`└ `) + c.dim(`[Enter] один раз  [s] на сессию  [a] навсегда  [Esc] отклонить: `)
   }
 
   const answer = await askKey(prompt)
@@ -98,10 +108,21 @@ export async function checkPermission(toolName, args) {
     return { allowed: false, reason: "user rejected" }
   }
 
+  if (answer === "s" && filePath) {
+    const dir = path.dirname(path.resolve(filePath))
+    _approvedDirs.add(dir)
+    return { allowed: true }
+  }
+
   if (answer === "d" && filePath) {
     const dir = path.dirname(path.resolve(filePath))
     _approvedDirs.add(dir)
     await persistDir(dir)
+    return { allowed: true }
+  }
+
+  if (answer === "s" && !filePath) {
+    _approvedTools.add(toolName)
     return { allowed: true }
   }
 
