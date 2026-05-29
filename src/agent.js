@@ -26,8 +26,7 @@ import {
   createCheckpoint, incrementTurn
 } from "./session.js"
 
-const _modifiedFiles = new Set()
-export function getModifiedFiles() { return [..._modifiedFiles] }
+import { addModifiedFile } from "./tracking.js"
 
 let client = null
 
@@ -341,6 +340,8 @@ export async function agentLoop(userMessage) {
       let streamError = null
       let abortDuringStream = false
 
+      print(c.green("\nAgent: "))
+
       while (true) {
         let anyContentReceived = false
         fullContent = ""
@@ -370,8 +371,6 @@ export async function agentLoop(userMessage) {
           streamError = err
           break
         }
-
-        print(c.green("\nAgent: "))
 
         try {
           for await (const chunk of stream) {
@@ -487,14 +486,8 @@ export async function agentLoop(userMessage) {
           } else {
             consecutiveToolErrors = 0
             if ((call.function.name === "write_file" || call.function.name === "edit_file") && args.path) {
-              _modifiedFiles.add(args.path)
+              addModifiedFile(args.path)
             }
-          }
-
-          if (consecutiveToolErrors >= 3) {
-            print(c.yellow("\n[агент] 3 ошибки подряд — остановлен. Проверьте задачу.\n"))
-            tooManyToolErrors = true
-            break
           }
 
           const CONTEXT_LIMIT = 12000
@@ -509,6 +502,12 @@ export async function agentLoop(userMessage) {
 
           if (isFileTool(call.function.name, args)) {
             await cacheSet(call.function.name, call.function.arguments, args.path, getMessages().length)
+          }
+
+          if (consecutiveToolErrors >= 3) {
+            print(c.yellow("\n[агент] 3 ошибки подряд — остановлен. Проверьте задачу.\n"))
+            tooManyToolErrors = true
+            break
           }
         }
         if (tooManyToolErrors) break

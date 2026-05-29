@@ -3,7 +3,7 @@ import { runHooks } from "./hooks.js"
 import { c } from "./ui.js"
 import { estimateTokens } from "./tokens.js"
 import { todoReadTool } from "./tools/todo.js"
-import { getModifiedFiles } from "./agent.js"
+import { getModifiedFiles } from "./tracking.js"
 
 export async function compactIfNeeded(messages, client, force = false) {
   const { contextLimit } = getConfig()
