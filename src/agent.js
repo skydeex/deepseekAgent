@@ -203,6 +203,45 @@ function repairOrphanedToolCalls(messages) {
   return result
 }
 
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+
+const MAX_RETRIES = 2
+
+function classifyError(err) {
+  if (err.name === 'AbortError') return 'abort'
+  const networkCodes = ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'ENOTFOUND', 'EPIPE']
+  if (networkCodes.includes(err.code)) return 'network'
+  const msg = (err.message ?? '').toLowerCase()
+  if (msg.includes('network') || msg.includes('socket') || msg.includes('connection')) return 'network'
+  if (err.status === 429) return 'rate_limit'
+  if (err.status === 503) return 'overloaded'
+  if (err.status === 400 && (msg.includes('context') || msg.includes('length') || msg.includes('token'))) return 'context'
+  if (err.status === 401 || err.status === 403) return 'auth'
+  return 'unknown'
+}
+
+function describeError(err) {
+  switch (classifyError(err)) {
+    case 'network':    return 'ошибка сети'
+    case 'rate_limit': {
+      const after = err.headers?.['retry-after']
+      return after ? `лимит запросов — подождите ${after}с` : 'лимит запросов'
+    }
+    case 'overloaded': return 'API перегружен'
+    case 'context':    return 'контекст переполнен — используйте /compact'
+    case 'auth':       return 'ошибка авторизации — проверьте DEEPSEEK_API_KEY'
+    default:           return err.message ?? String(err)
+  }
+}
+
+function shouldRetry(err, anyContentReceived, attempt, signal) {
+  if (anyContentReceived) return false
+  if (attempt >= MAX_RETRIES) return false
+  if (signal.aborted) return false
+  const cat = classifyError(err)
+  return cat === 'network' || cat === 'overloaded'
+}
+
 export async function agentLoop(userMessage) {
   await initialize()
   await runHooks("UserPromptSubmit", { message: userMessage })
@@ -287,72 +326,112 @@ export async function agentLoop(userMessage) {
       messages = await compactIfNeeded(messages, getClient())
       setMessages(messages)
 
-      let stream
-      try {
-        stream = await getClient().chat.completions.create({
-          model: getModel(),
-          messages,
-          tools: buildOpenAITools(),
-          temperature: getConfig().temperature ?? 0,
-          stream: true,
-          signal,
-          ...getThinkingParams()
-        })
-      } catch (err) {
-        if (signal.aborted || err.name === 'AbortError') break
-        throw err
-      }
-
       let fullContent = ""
       let fullReasoning = ""
       let toolCalls = []
       let finishReason = null
       let hasReasoning = false
+      let attempt = 0
+      let streamError = null
+      let abortDuringStream = false
 
-      print(c.green("\nAgent: "))
+      while (true) {
+        let anyContentReceived = false
+        fullContent = ""
+        fullReasoning = ""
+        toolCalls = []
+        finishReason = null
+        hasReasoning = false
 
-      try {
-        for await (const chunk of stream) {
-          if (signal.aborted) break
-          const delta = chunk.choices[0]?.delta
-          finishReason = chunk.choices[0]?.finish_reason ?? finishReason
-
-          const reasoningDelta = chunk.choices[0]?.delta?.reasoning_content
-          if (reasoningDelta) {
-            if (!hasReasoning) { print(c.dim("\n[thinking]\n")); hasReasoning = true }
-            process.stdout.write(c.dim(reasoningDelta))
-            fullReasoning += reasoningDelta
+        let stream
+        try {
+          stream = await getClient().chat.completions.create({
+            model: getModel(),
+            messages,
+            tools: buildOpenAITools(),
+            temperature: getConfig().temperature ?? 0,
+            stream: true,
+            signal,
+            ...getThinkingParams()
+          })
+        } catch (err) {
+          if (shouldRetry(err, anyContentReceived, attempt, signal)) {
+            attempt++
+            print(c.dim(`\n[retry ${attempt}/${MAX_RETRIES}] ${describeError(err)}, повтор...\n`))
+            await sleep(1000 * attempt)
             continue
           }
-
-          if (hasReasoning && delta?.content && !fullContent) {
-            print(c.dim("[/thinking]\n") + c.green("Agent: "))
-            hasReasoning = false
-          }
-
-          if (delta?.content) {
-            print(delta.content)
-            emit("text", { text: delta.content })
-            fullContent += delta.content
-          }
-
-          if (delta?.tool_calls) {
-            for (const tc of delta.tool_calls) {
-              if (!toolCalls[tc.index]) {
-                toolCalls[tc.index] = { id: "", type: "function", function: { name: "", arguments: "" } }
-              }
-              if (tc.id) toolCalls[tc.index].id += tc.id
-              if (tc.function?.name) toolCalls[tc.index].function.name += tc.function.name
-              if (tc.function?.arguments) toolCalls[tc.index].function.arguments += tc.function.arguments
-            }
-          }
-        }
-      } catch (err) {
-        if (signal.aborted || err.name === 'AbortError') {
-          if (fullContent) print("\n")
+          streamError = err
           break
         }
-        throw err
+
+        print(c.green("\nAgent: "))
+
+        try {
+          for await (const chunk of stream) {
+            if (signal.aborted) break
+            const delta = chunk.choices[0]?.delta
+            finishReason = chunk.choices[0]?.finish_reason ?? finishReason
+
+            const reasoningDelta = chunk.choices[0]?.delta?.reasoning_content
+            if (reasoningDelta) {
+              if (!hasReasoning) { print(c.dim("\n[thinking]\n")); hasReasoning = true }
+              process.stdout.write(c.dim(reasoningDelta))
+              fullReasoning += reasoningDelta
+              anyContentReceived = true
+              continue
+            }
+
+            if (hasReasoning && delta?.content && !fullContent) {
+              print(c.dim("[/thinking]\n") + c.green("Agent: "))
+              hasReasoning = false
+            }
+
+            if (delta?.content) {
+              print(delta.content)
+              emit("text", { text: delta.content })
+              fullContent += delta.content
+              anyContentReceived = true
+            }
+
+            if (delta?.tool_calls) {
+              for (const tc of delta.tool_calls) {
+                if (!toolCalls[tc.index]) {
+                  toolCalls[tc.index] = { id: "", type: "function", function: { name: "", arguments: "" } }
+                }
+                if (tc.id) toolCalls[tc.index].id += tc.id
+                if (tc.function?.name) toolCalls[tc.index].function.name += tc.function.name
+                if (tc.function?.arguments) toolCalls[tc.index].function.arguments += tc.function.arguments
+              }
+              anyContentReceived = true
+            }
+          }
+        } catch (err) {
+          if (signal.aborted || err.name === 'AbortError') {
+            if (fullContent) print("\n")
+            abortDuringStream = true
+            break
+          }
+          if (shouldRetry(err, anyContentReceived, attempt, signal)) {
+            attempt++
+            print(c.dim(`\n[retry ${attempt}/${MAX_RETRIES}] ${describeError(err)}, повтор...\n`))
+            await sleep(1000 * attempt)
+            continue
+          }
+          streamError = err
+          break
+        }
+
+        break // успешно
+      }
+
+      if (abortDuringStream) break
+      if (streamError !== null) {
+        const category = classifyError(streamError)
+        if (category !== 'abort') {
+          print(c.red(`\n[ошибка] ${describeError(streamError)}\n`))
+        }
+        break
       }
 
       if (signal.aborted) {
