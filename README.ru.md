@@ -104,8 +104,8 @@ register(mylangParser)
 ## Запуск
 
 ```bash
-agent                                          # обычный режим
-agent --think                                  # режим размышлений (deepseek-reasoner)
+agent                                          # обычный режим (thinking включён по умолчанию)
+agent --think                                  # принудительно включить thinking (перекрывает конфиг)
 agent --worktree                               # git-изоляция в отдельном worktree
 agent --output-format=json "промпт"           # CI/скрипты — вывод в JSON
 ```
@@ -135,7 +135,7 @@ agent --output-format=json "промпт"           # CI/скрипты — вы
 | `/parser [sub]` | Управление авто-генерацией поддержки языков: `ask`/`always`/`never`/`gen <файл>` |
 | `/creative` | Переключить точный режим (temperature=0) ↔ режим рассуждений (temperature=0.5) |
 | `/lang [код\|off]` | Язык ответов (`ru`, `en`, `de`, …) или сброс на авто-определение |
-| `/model` | Информация о текущей модели |
+| `/model [N]` | Интерактивный выбор модели: flash/pro × режим думания none/high/max |
 
 ## Инструменты агента
 
@@ -148,6 +148,7 @@ agent --output-format=json "промпт"           # CI/скрипты — вы
 | `grep` | Поиск по содержимому файлов с поддержкой regex. Бинарные файлы пропускаются, ignore-правила применяются, лимит — 200 совпадений |
 | `bash` | Выполнение shell-команд (с sandbox по умолчанию). Вывод обрезается до 8 000 символов |
 | `web_search` | Поиск через DuckDuckGo без API-ключа |
+| `web_fetch` | Загрузить URL и вернуть текстовое содержимое. GitHub-страницы релизов, репозиториев и raw-файлы обрабатываются автоматически |
 | `todo_write` / `todo_read` | Список задач с зависимостями внутри сессии |
 | `task` | Запуск подагентов: синхронно, параллельно или в фоне |
 | `code_outline` | Список функций/методов с номерами строк (optimizer) |
@@ -208,22 +209,24 @@ agent --output-format=json "промпт"           # CI/скрипты — вы
 
 ```json
 {
-  "model": "deepseek-chat",
-  "thinkingModel": "deepseek-reasoner",
-  "contextLimit": 60000,
+  "model": "deepseek-v4-flash",
+  "thinkingMode": "high",
+  "contextLimit": 100000,
   "alwaysAllow": ["read_file", "glob", "grep", "todo_read", "generate_parser"],
   "neverAllow": [],
   "disallowedTools": [],
   "dangerouslyDisableSandbox": false,
   "mcpServers": {},
   "language": null,
-  "optimizer": false,
+  "optimizer": true,
   "generateParser": "ask"
 }
 ```
 
 | Поле | Описание |
 |---|---|
+| `model` | Модель: `"deepseek-v4-flash"` (по умолчанию) или `"deepseek-v4-pro"` |
+| `thinkingMode` | Уровень thinking: `"high"` (по умолчанию), `"max"` (бюджет 16k токенов), `"none"` |
 | `alwaysAllow` | Инструменты без запроса подтверждения |
 | `neverAllow` | Инструменты, которые всегда блокируются |
 | `disallowedTools` | Инструменты, скрытые от модели полностью |
@@ -276,13 +279,14 @@ Shell-команды, запускаемые на события агента (`
 
 ## Смена модели
 
-По умолчанию используется DeepSeek. В `src/agent.js` можно поменять `baseURL`, в `.agent/settings.json` — `model`:
+По умолчанию используется DeepSeek. В `src/agent.js` можно поменять `baseURL`, в `.agent/settings.json` — `model`. Уровень thinking управляется отдельно через `thinkingMode` в настройках или командой `/model`.
 
 ```
-DeepSeek (по умолчанию)  baseURL: https://api.deepseek.com      model: deepseek-chat
-OpenAI                   без baseURL                             model: gpt-4o
-Ollama (локально)        baseURL: http://localhost:11434/v1      model: qwen2.5-coder
-Groq                     baseURL: https://api.groq.com/openai/v1 model: llama-3.3-70b-versatile
+DeepSeek (по умолчанию)  baseURL: https://api.deepseek.com       model: deepseek-v4-flash
+DeepSeek Pro             baseURL: https://api.deepseek.com       model: deepseek-v4-pro
+OpenAI                   без baseURL                              model: gpt-4o
+Ollama (локально)        baseURL: http://localhost:11434/v1       model: qwen2.5-coder
+Groq                     baseURL: https://api.groq.com/openai/v1  model: llama-3.3-70b-versatile
 ```
 
 ## JSON-режим (CI/скрипты)

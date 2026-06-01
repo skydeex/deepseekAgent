@@ -106,8 +106,8 @@ That's it — `code_outline` and `code_definition` will work with `.wren` files 
 ## Usage
 
 ```bash
-agent                                          # normal mode
-agent --think                                  # extended thinking (deepseek-reasoner)
+agent                                          # normal mode (thinking enabled by default)
+agent --think                                  # force thinking mode on (overrides config)
 agent --worktree                               # git-isolated worktree
 agent --output-format=json "prompt"           # CI / scripting — JSON output
 ```
@@ -137,7 +137,7 @@ Type directly in the chat:
 | `/parser [sub]`      | Manage auto-generation of language support: `ask`/`always`/`never`/`gen <file>` |
 | `/creative`          | Toggle precise mode (temperature=0) ↔ reasoning mode (temperature=0.5) |
 | `/lang [code\|off]`  | Set response language (`ru`, `en`, `de`, …) or reset to auto-detect |
-| `/model`             | Info about the current model |
+| `/model [N]`         | Interactive model selector: flash/pro × think none/high/max |
 
 ## Tools
 
@@ -150,6 +150,7 @@ Type directly in the chat:
 | `grep` | Search file contents with regex support. Binary files skipped, ignore rules applied, limit 200 matches |
 | `bash` | Run shell commands (sandboxed by default). Output truncated at 8,000 chars |
 | `web_search` | DuckDuckGo search, no API key required |
+| `web_fetch` | Fetch a URL and return its text content. GitHub release pages, repo pages, and raw files are handled automatically |
 | `todo_write` / `todo_read` | Task list with dependencies within a session |
 | `task` | Spawn sub-agents: sync, parallel, or background |
 | `code_outline` | List all functions/methods with line numbers (optimizer) |
@@ -210,22 +211,24 @@ Auto-created on first run at `.agent/settings.json`:
 
 ```json
 {
-  "model": "deepseek-chat",
-  "thinkingModel": "deepseek-reasoner",
-  "contextLimit": 60000,
+  "model": "deepseek-v4-flash",
+  "thinkingMode": "high",
+  "contextLimit": 100000,
   "alwaysAllow": ["read_file", "glob", "grep", "todo_read", "generate_parser"],
   "neverAllow": [],
   "disallowedTools": [],
   "dangerouslyDisableSandbox": false,
   "mcpServers": {},
   "language": null,
-  "optimizer": false,
+  "optimizer": true,
   "generateParser": "ask"
 }
 ```
 
 | Field | Description |
 |---|---|
+| `model` | Model to use: `"deepseek-v4-flash"` (default) or `"deepseek-v4-pro"` |
+| `thinkingMode` | Thinking level: `"high"` (default), `"max"` (budget 16k tokens), or `"none"` |
 | `alwaysAllow` | Tools that run without confirmation |
 | `neverAllow` | Tools that are always blocked |
 | `disallowedTools` | Tools hidden from the model entirely |
@@ -278,13 +281,14 @@ Shell commands triggered on agent events (`.agent/hooks.json`):
 
 ## Switching Models
 
-DeepSeek is used by default. Change `baseURL` in `src/agent.js` and `model` in `.agent/settings.json`:
+DeepSeek is used by default. Change `baseURL` in `src/agent.js` and `model` in `.agent/settings.json`. Thinking level is controlled separately via `thinkingMode` in settings or the `/model` command.
 
 ```
-DeepSeek (default)  baseURL: https://api.deepseek.com      model: deepseek-chat
-OpenAI              no baseURL                              model: gpt-4o
-Ollama (local)      baseURL: http://localhost:11434/v1      model: qwen2.5-coder
-Groq                baseURL: https://api.groq.com/openai/v1 model: llama-3.3-70b-versatile
+DeepSeek (default)  baseURL: https://api.deepseek.com       model: deepseek-v4-flash
+DeepSeek Pro        baseURL: https://api.deepseek.com       model: deepseek-v4-pro
+OpenAI              no baseURL                               model: gpt-4o
+Ollama (local)      baseURL: http://localhost:11434/v1       model: qwen2.5-coder
+Groq                baseURL: https://api.groq.com/openai/v1  model: llama-3.3-70b-versatile
 ```
 
 ## JSON Mode (CI / Scripting)
