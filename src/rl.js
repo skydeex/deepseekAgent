@@ -23,6 +23,8 @@ export function askWithComplete(prompt, commands) {
     let suggestionsShown = 0  // сколько строк подсказок сейчас на экране
     let selectedIdx = -1      // выбранная подсказка (-1 = нет)
     let pasting = false       // bracketed paste mode: идёт вставка
+    let lineCount = 1         // сколько строк терминала занимает текущий ввод
+    let prevCursorRow = 0     // строка курсора после последнего redraw
 
     // Видимая длина промпта (без ANSI-кодов)
     const promptLen = prompt.replace(/\x1b\[[0-9;]*m/g, '').length
@@ -56,10 +58,36 @@ export function askWithComplete(prompt, commands) {
 
     // Перерисовать строку ввода и поставить курсор на cursorPos
     function redraw() {
+      const cols = process.stdout.columns || 80
+
+      // Переместиться на первую строку области ввода
+      if (prevCursorRow > 0) readline.moveCursor(process.stdout, 0, -prevCursorRow)
       readline.cursorTo(process.stdout, 0)
-      readline.clearLine(process.stdout, 0)
+
+      // Стереть все строки, занятые предыдущим вводом
+      for (let i = 0; i < lineCount; i++) {
+        readline.clearLine(process.stdout, 0)
+        if (i < lineCount - 1) readline.moveCursor(process.stdout, 0, 1)
+      }
+      if (lineCount > 1) readline.moveCursor(process.stdout, 0, -(lineCount - 1))
+      readline.cursorTo(process.stdout, 0)
+
+      // Записать актуальный prompt + buffer
       process.stdout.write(prompt + buffer)
-      readline.cursorTo(process.stdout, promptLen + cursorPos)
+
+      // Обновить lineCount
+      const totalLen = promptLen + buffer.length
+      lineCount = Math.max(1, Math.ceil(totalLen / cols))
+
+      // Поставить курсор на cursorPos (с учётом переноса строк)
+      const cursorAbsPos = promptLen + cursorPos
+      const endRow    = Math.floor(totalLen / cols)
+      const cursorRow = Math.floor(cursorAbsPos / cols)
+      const cursorCol = cursorAbsPos % cols
+      if (endRow > cursorRow) readline.moveCursor(process.stdout, 0, -(endRow - cursorRow))
+      readline.cursorTo(process.stdout, cursorCol)
+
+      prevCursorRow = cursorRow
     }
 
     // Убрать строки подсказок, вернуть курсор на cursorPos
@@ -106,6 +134,13 @@ export function askWithComplete(prompt, commands) {
     function finish(result) {
       clearSugs()
       process.stdout.write('\x1b[?2004l')  // выключить bracketed paste mode
+      // Переместить курсор на конец ввода перед переводом строки
+      const cols = process.stdout.columns || 80
+      const totalLen = promptLen + buffer.length
+      const endRow = Math.floor(totalLen / cols)
+      const endCol = totalLen % cols
+      if (endRow > prevCursorRow) readline.moveCursor(process.stdout, 0, endRow - prevCursorRow)
+      readline.cursorTo(process.stdout, endCol)
       process.stdout.write('\n')
       process.stdin.setRawMode(false)
       process.stdin.removeListener('keypress', onKeypress)
