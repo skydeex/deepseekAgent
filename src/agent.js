@@ -6,6 +6,7 @@ import { editTool } from "./tools/edit.js"
 import { globTool } from "./tools/glob.js"
 import { grepTool } from "./tools/grep.js"
 import { webSearchTool } from "./tools/web_search.js"
+import { webFetchTool } from "./tools/web_fetch.js"
 import { todoWriteTool, todoReadTool } from "./tools/todo.js"
 import { taskTool, taskResultTool, initTaskTool } from "./tools/task.js"
 import { codeOutlineTool, codeDefinitionTool, codeContextTool } from "./tools/optimizer.js"
@@ -49,7 +50,7 @@ export function rebuildTools() {
 
   TOOLS = [
     readTool, bashTool, writeTool, editTool,
-    globTool, grepTool, webSearchTool,
+    globTool, grepTool, webSearchTool, webFetchTool,
     todoWriteTool, todoReadTool,
     taskTool, taskResultTool,
     ..._mcpTools,
@@ -111,6 +112,7 @@ function formatToolCall(name, args) {
     case "glob":         return `Glob ${args.pattern}${args.cwd ? ` in ${args.cwd}` : ""}`
     case "grep":         return `Grep "${args.pattern}"${args.dir ? ` in ${args.dir}` : ""}`
     case "web_search":   return `Search "${args.query}"`
+    case "web_fetch":    return `Fetch ${args.url}`
     case "todo_read":    return `Todo read`
     case "todo_write":   return `Todo write`
     case "task":         return `Task ${(args.description ?? args.parallel?.join(", ") ?? "").slice(0, 60)}`
@@ -147,6 +149,11 @@ function formatToolResult(name, args, result) {
 
   if (name === "web_search") {
     return result.slice(0, 120) + (result.length > 120 ? "…" : "")
+  }
+
+  if (name === "web_fetch") {
+    const lines = result.split("\n").filter(Boolean)
+    return `${lines.length} строк`
   }
 
   // bash и остальные — показываем вывод как есть (он уже обрезан в bash.js)
