@@ -56,6 +56,16 @@ export function askWithComplete(prompt, commands) {
       return commands.filter(([cmd]) => cmd.split(' ')[0].toLowerCase().startsWith(q)).slice(0, 7)
     }
 
+    // Вычисляет визуальную {row, col} позиции pos в buf с учётом \n и переноса строк
+    function visualPos(buf, pos, startCol, cols) {
+      let row = 0, col = startCol
+      for (let i = 0; i < pos; i++) {
+        if (buf[i] === '\n') { row++; col = 0 }
+        else { col++; if (col >= cols) { row++; col = 0 } }
+      }
+      return { row, col }
+    }
+
     // Перерисовать строку ввода и поставить курсор на cursorPos
     function redraw() {
       const cols = process.stdout.columns || 80
@@ -75,19 +85,16 @@ export function askWithComplete(prompt, commands) {
       // Записать актуальный prompt + buffer
       process.stdout.write(prompt + buffer)
 
-      // Обновить lineCount
-      const totalLen = promptLen + buffer.length
-      lineCount = Math.max(1, Math.ceil(totalLen / cols))
+      // Обновить lineCount с учётом \n в buffer
+      const endPos = visualPos(buffer, buffer.length, promptLen, cols)
+      lineCount = endPos.row + 1
 
-      // Поставить курсор на cursorPos (с учётом переноса строк)
-      const cursorAbsPos = promptLen + cursorPos
-      const endRow    = Math.floor(totalLen / cols)
-      const cursorRow = Math.floor(cursorAbsPos / cols)
-      const cursorCol = cursorAbsPos % cols
-      if (endRow > cursorRow) readline.moveCursor(process.stdout, 0, -(endRow - cursorRow))
-      readline.cursorTo(process.stdout, cursorCol)
+      // Поставить курсор на cursorPos с учётом \n
+      const curPos = visualPos(buffer, cursorPos, promptLen, cols)
+      if (endPos.row > curPos.row) readline.moveCursor(process.stdout, 0, -(endPos.row - curPos.row))
+      readline.cursorTo(process.stdout, curPos.col)
 
-      prevCursorRow = cursorRow
+      prevCursorRow = curPos.row
     }
 
     // Убрать строки подсказок, вернуть курсор на cursorPos
@@ -136,11 +143,9 @@ export function askWithComplete(prompt, commands) {
       process.stdout.write('\x1b[?2004l')  // выключить bracketed paste mode
       // Переместить курсор на конец ввода перед переводом строки
       const cols = process.stdout.columns || 80
-      const totalLen = promptLen + buffer.length
-      const endRow = Math.floor(totalLen / cols)
-      const endCol = totalLen % cols
-      if (endRow > prevCursorRow) readline.moveCursor(process.stdout, 0, endRow - prevCursorRow)
-      readline.cursorTo(process.stdout, endCol)
+      const endPos = visualPos(buffer, buffer.length, promptLen, cols)
+      if (endPos.row > prevCursorRow) readline.moveCursor(process.stdout, 0, endPos.row - prevCursorRow)
+      readline.cursorTo(process.stdout, endPos.col)
       process.stdout.write('\n')
       process.stdin.setRawMode(false)
       process.stdin.removeListener('keypress', onKeypress)
@@ -159,7 +164,8 @@ export function askWithComplete(prompt, commands) {
 
       // Во время вставки Enter добавляем как \n в буфер, а не отправляем
       if (pasting && (key.name === 'return' || key.name === 'enter')) {
-        buffer += '\n'
+        buffer = buffer.slice(0, cursorPos) + '\n' + buffer.slice(cursorPos)
+        cursorPos++
         return
       }
 
@@ -316,8 +322,10 @@ export function askWithComplete(prompt, commands) {
         buffer = buffer.slice(0, cursorPos) + str + buffer.slice(cursorPos)
         cursorPos++
         selectedIdx = -1
-        redraw()
-        drawSugs(match())
+        if (!pasting) {
+          redraw()
+          drawSugs(match())
+        }
       }
     }
 
