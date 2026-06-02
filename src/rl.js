@@ -365,7 +365,7 @@ export function askKey(prompt) {
         return
       }
 
-      if (key.name === 'escape') {
+      if (key.name === 'escape' || key.sequence === '\x1b' || key.meta) {
         process.stdout.write('Esc\n')
         resolve('\x1b')
         return
