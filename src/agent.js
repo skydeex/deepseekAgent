@@ -453,14 +453,16 @@ export async function agentLoop(userMessage) {
 
       if (fullContent) print("\n")
 
-      pushMessage({
-        role: "assistant",
-        content: fullContent || null,
-        ...(fullReasoning ? { reasoning_content: fullReasoning } : {}),
-        tool_calls: toolCalls.length ? toolCalls : undefined
-      })
+      if (fullContent || toolCalls.length) {
+        pushMessage({
+          role: "assistant",
+          content: fullContent || null,
+          ...(fullReasoning ? { reasoning_content: fullReasoning } : {}),
+          tool_calls: toolCalls.length ? toolCalls : undefined
+        })
+      }
 
-      if (finishReason === "stop") {
+      if (finishReason === "stop" || (!finishReason && fullContent && !toolCalls.length)) {
         await runHooks("Stop", { response: fullContent })
         return fullContent
       }
