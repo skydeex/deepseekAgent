@@ -98,7 +98,7 @@ async function maybeInit() {
     c.yellow(`└ `) + c.dim(`Создать .agent/settings.json и .agent/AGENT.md? [Enter] да  [n/Esc] нет  `)
   )
 
-  if (answer === "\x1b" || answer === "n") { console.log(); return }
+  if (answer !== "") { console.log(); return }
 
   await fs.mkdir(agentDir, { recursive: true })
 
@@ -137,7 +137,7 @@ async function offerUpdate() {
   process.stdout.write(c.yellow(`\n[update] Доступно обновление (+${count} коммит(ов)). Обновить? [Enter] да  [n/Esc] нет  `))
   const answer = await askKey("")
   console.log()
-  if (answer === "\x1b" || answer === "n") return
+  if (answer !== "") return
 
   const run = cmd => execSync(cmd, { cwd: AGENT_DIR, stdio: "inherit" })
   run("git stash")

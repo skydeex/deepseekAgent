@@ -124,11 +124,15 @@ async function readIgnoreFile(filePath) {
 export async function initIgnore(cwd = process.cwd()) {
   const agentIgnorePath = path.join(cwd, ".agentignore")
 
-  // Создаём .agentignore если не существует
+  // Создаём .agentignore только если .agent/ уже существует (папка инициализирована)
+  const agentDir = path.join(cwd, ".agent")
   try {
     await fs.access(agentIgnorePath)
   } catch {
-    await fs.writeFile(agentIgnorePath, DEFAULT_AGENTIGNORE, "utf-8")
+    try {
+      await fs.access(agentDir)
+      await fs.writeFile(agentIgnorePath, DEFAULT_AGENTIGNORE, "utf-8")
+    } catch {}
   }
 
   // Загружаем и объединяем все ignore-файлы
