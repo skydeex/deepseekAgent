@@ -39,7 +39,7 @@ async function confirmInstall(command) {
   const prompt =
     c.yellow(`\n┌ [?] Агент хочет установить ПО:\n`) +
     c.yellow(`│ `) + c.dim(`${command.slice(0, 120)}\n`) +
-    c.yellow(`└ `) + c.dim(`[Enter] разрешить  [Esc] отклонить: `)
+    c.yellow(`└ `) + c.dim(`[Enter] разрешить  [n/Esc] отклонить: `)
   const answer = await askKey(prompt)
   if (answer === '\x03') { interrupt(); return false }
   return answer === ''  // Enter = разрешить

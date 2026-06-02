@@ -95,10 +95,10 @@ async function maybeInit() {
   // Папка не существует — предлагаем инициализацию
   const answer = await askKey(
     c.yellow(`\n┌ Папка не инициализирована для работы с агентом.\n`) +
-    c.yellow(`└ `) + c.dim(`Создать .agent/settings.json и .agent/AGENT.md? [Enter] да  [Esc] нет  `)
+    c.yellow(`└ `) + c.dim(`Создать .agent/settings.json и .agent/AGENT.md? [Enter] да  [n/Esc] нет  `)
   )
 
-  if (answer === "\x1b") { console.log(); return }
+  if (answer === "\x1b" || answer === "n") { console.log(); return }
 
   await fs.mkdir(agentDir, { recursive: true })
 
@@ -134,10 +134,10 @@ async function offerUpdate() {
   let count
   try { count = (await fs.readFile(UPDATE_FLAG, "utf-8")).trim() } catch { return }
 
-  process.stdout.write(c.yellow(`\n[update] Доступно обновление (+${count} коммит(ов)). Обновить? [Enter] да  [Esc] нет  `))
+  process.stdout.write(c.yellow(`\n[update] Доступно обновление (+${count} коммит(ов)). Обновить? [Enter] да  [n/Esc] нет  `))
   const answer = await askKey("")
   console.log()
-  if (answer === "\x1b") return
+  if (answer === "\x1b" || answer === "n") return
 
   const run = cmd => execSync(cmd, { cwd: AGENT_DIR, stdio: "inherit" })
   run("git stash")

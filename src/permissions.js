@@ -90,11 +90,11 @@ export async function checkPermission(toolName, args) {
     const dir = path.dirname(path.resolve(filePath))
     prompt =
       c.yellow(`\n┌ [?] ${toolName} → ${filePath}\n`) +
-      c.yellow(`└ `) + c.dim(`[Enter] один раз  [s] папку на сессию  [d] папку навсегда  [Esc] отклонить: `)
+      c.yellow(`└ `) + c.dim(`[Enter] один раз  [s] папку на сессию  [d] папку навсегда  [n/Esc] отклонить: `)
   } else {
     prompt =
       c.yellow(`\n┌ [?] ${toolName}: ${JSON.stringify(args)}\n`) +
-      c.yellow(`└ `) + c.dim(`[Enter] один раз  [s] на сессию  [a] навсегда  [Esc] отклонить: `)
+      c.yellow(`└ `) + c.dim(`[Enter] один раз  [s] на сессию  [a] навсегда  [n/Esc] отклонить: `)
   }
 
   const answer = await askKey(prompt)
@@ -104,7 +104,7 @@ export async function checkPermission(toolName, args) {
     return { allowed: false, reason: "interrupted" }
   }
 
-  if (answer === '\x1b') {  // Escape — отклонить
+  if (answer === '\x1b' || answer === 'n') {  // Escape/n — отклонить
     return { allowed: false, reason: "user rejected" }
   }
 
