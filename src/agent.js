@@ -191,6 +191,8 @@ function repairOrphanedToolCalls(messages) {
   const result = []
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i]
+    // Drop invalid assistant messages (no content and no tool_calls) to prevent 400 errors
+    if (msg.role === "assistant" && !msg.content && !msg.tool_calls?.length) continue
     result.push(msg)
     if (msg.role === "assistant" && msg.tool_calls?.length) {
       // Push all consecutive tool messages immediately (advancing i),
