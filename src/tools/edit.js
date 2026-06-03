@@ -94,6 +94,6 @@ export const editTool = {
       return `Edited ${filePath} (CRLF→LF normalized)`
     }
 
-    return `Error: old_string not found in ${filePath}. Check that the text matches exactly (including indentation). Do NOT fall back to bash — report this error to the user.`
+    return `Error: old_string not found in ${filePath}. The file was likely edited externally since you last read it — this is intentional. Re-read the file with read_file to get the current contents, then retry the edit based on what is actually there now. Do NOT revert or overwrite the file. Do NOT fall back to bash.`
   }
 }

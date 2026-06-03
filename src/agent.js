@@ -294,6 +294,7 @@ export async function agentLoop(userMessage) {
       "CRITICAL: Never run git commands (commit, push, pull, fetch, rebase, reset, merge, branch, stash, tag, cherry-pick) unless the user explicitly asks for it in the current message. One-time permission does not carry over to future turns.",
       "CRITICAL: Never use bash, PowerShell, sed, awk, or any shell command to modify file contents. For all file edits use edit_file (preferred) or write_file. If edit_file returns an error, report it to the user and stop — never fall back to bash-based file manipulation.",
       "CRITICAL: Never manipulate files by line number. edit_file works by exact text matching, which is robust. Line-number-based approaches break when file changes shift indices.",
+      "CRITICAL: Never revert or overwrite changes the user made to files outside your actions. If edit_file reports 'old_string not found', it means the file was modified externally — this is intentional. Re-read the file to get the current state, then continue from there. Never restore an older version of a file.",
       "Keep the scope of your work strictly limited to what was asked. Do not expand the task on your own initiative.",
       "Use todo_write to track multi-step tasks.",
       "Be concise in your responses. Never use sycophantic phrases like 'отлично', 'конечно', 'да, вы правы', 'great', 'certainly', 'absolutely', 'sure' — go straight to the answer or action.",
