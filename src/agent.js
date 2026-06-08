@@ -80,7 +80,7 @@ function buildOpenAITools() {
   return _openAITools
 }
 
-async function executeTool(name, args) {
+async function executeTool(name, args, signal) {
   const tool = TOOLS.find(t => t.name === name)
   if (!tool) return `Unknown tool: ${name}`
 
@@ -94,7 +94,14 @@ async function executeTool(name, args) {
 
   let result
   try {
-    result = await tool.execute(args)
+    const TIMEOUT_MS = 60_000
+    result = await Promise.race([
+      tool.execute(args),
+      new Promise((_, reject) => {
+        const id = setTimeout(() => reject(new Error("Tool timeout (60s)")), TIMEOUT_MS)
+        signal?.addEventListener("abort", () => { clearTimeout(id); reject(new Error("Aborted")) }, { once: true })
+      })
+    ])
   } catch (err) {
     result = `Error: ${err.message}`
   }
@@ -489,7 +496,7 @@ export async function agentLoop(userMessage) {
             }
           }
 
-          const result = await executeTool(call.function.name, args)
+          const result = await executeTool(call.function.name, args, signal)
 
           const full = String(result)
 

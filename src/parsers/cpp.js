@@ -15,10 +15,16 @@ export default {
 
   outline(lines) {
     const results = []
+    let inBlock = false  // внутри /* ... */ блока
     for (let i = 0; i < lines.length; i++) {
       const raw = lines[i]
+      if (inBlock) {
+        if (raw.includes('*/')) inBlock = false
+        continue
+      }
       if (/^\s*#/.test(raw)) continue         // препроцессор
       if (/^\s*\/\//.test(raw)) continue      // комментарий
+      if (raw.includes('/*') && !raw.includes('*/')) inBlock = true
       const clean = strip(raw)
 
       // Ищем: [qualifiers] [ClassName::] FunctionName(
