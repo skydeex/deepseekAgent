@@ -17,10 +17,14 @@ export async function compactIfNeeded(messages, client, force = false) {
 
   const system = messages.find(m => m.role === "system")
   const nonSystem = messages.filter(m => m.role !== "system")
-  const recent = nonSystem.slice(-6)
 
-  const historyText = recent
-    .map(m => `[${m.role}]: ${typeof m.content === "string" ? m.content : JSON.stringify(m.content)}`)
+  const MSG_LIMIT = 1500
+  const historyText = nonSystem
+    .map(m => {
+      const raw = typeof m.content === "string" ? m.content : JSON.stringify(m.content)
+      const text = raw.length > MSG_LIMIT ? raw.slice(0, MSG_LIMIT) + `… [+${raw.length - MSG_LIMIT} chars]` : raw
+      return `[${m.role}]: ${text}`
+    })
     .join("\n")
 
   const todoText = await todoReadTool.execute()

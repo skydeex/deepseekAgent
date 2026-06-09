@@ -376,7 +376,7 @@ export async function agentLoop(userMessage) {
             temperature: getConfig().temperature ?? 0,
             stream: true,
             signal,
-            ...getThinkingParams()
+            ...(getModel() === "deepseek-reasoner" ? getThinkingParams() : {})
           })
         } catch (err) {
           if (shouldRetry(err, anyContentReceived, attempt, signal)) {
@@ -467,7 +467,6 @@ export async function agentLoop(userMessage) {
         pushMessage({
           role: "assistant",
           content: fullContent || null,
-          ...(fullReasoning ? { reasoning_content: fullReasoning } : {}),
           tool_calls: toolCalls.length ? toolCalls : undefined
         })
       }
