@@ -30,7 +30,7 @@ export default {
       // Ищем: [qualifiers] [ClassName::] FunctionName(
       // qualifiers: static, inline, virtual, explicit, constexpr, [[nodiscard]], override, const, ~
       const m = clean.match(
-        /^\s*(?:(?:static|inline|virtual|explicit|constexpr|extern|friend|[[nodiscard\]]*|override|final|auto)\s+)*(?:[\w:*&<>~\[\]]+\s+)+?((?:[\w:]+::)*~?[a-zA-Z_]\w*)\s*\(/
+        /^\s*(?:(?:static|inline|virtual|explicit|constexpr|extern|friend|\[\[nodiscard\]\]|override|final|auto)\s+)*(?:[\w:*&<>~\[\]]+\s+)+?((?:[\w:]+::)*~?[a-zA-Z_]\w*)\s*\(/
       )
       if (!m) continue
       const name = m[1].includes("::") ? m[1].split("::").pop() : m[1]
