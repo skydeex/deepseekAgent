@@ -329,7 +329,7 @@ export async function agentLoop(userMessage) {
 
   pushMessage({ role: "user", content: userMessage })
 
-  const MAX_ITERATIONS = getConfig().maxIterations ?? 40
+  const MAX_ITERATIONS = getConfig().maxIterations ?? 80
   let iterations = 0
   let consecutiveToolErrors = 0
   let tooManyToolErrors = false
@@ -522,8 +522,8 @@ export async function agentLoop(userMessage) {
             await cacheSet(call.function.name, call.function.arguments, args.path, getMessages().length)
           }
 
-          if (consecutiveToolErrors >= 3) {
-            print(c.yellow("\n[агент] 3 ошибки подряд — остановлен. Проверьте задачу.\n"))
+          if (consecutiveToolErrors >= 15) {
+            print(c.yellow("\n[агент] 15 ошибок подряд — остановлен. Проверьте задачу.\n"))
             tooManyToolErrors = true
             break
           }
